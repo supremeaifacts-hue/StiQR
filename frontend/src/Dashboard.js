@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from './contexts/AuthContext';
+import { useAuth, API_BASE_URL } from './contexts/AuthContext';
 import TopBar from './TopBar';
 import StatisticsModal from './StatisticsModal';
 
 const Dashboard = ({ onCreate, onViewPricing, onBack, onEditQrCode }) => {
-  const { user, isAuthenticated, logout, demoLogin, getUserAssets, saveSticker, saveLogo, saveQrCode, canCreateDynamicQrCodes, getTrialDaysLeft, isProUser } = useAuth();
+  const { user, isAuthenticated, logout, demoLogin, getUserAssets, saveSticker, saveLogo, deleteSticker, deleteLogo, saveQrCode, canCreateDynamicQrCodes, getTrialDaysLeft, isProUser } = useAuth();
   const [userAssets, setUserAssets] = useState({ stickers: [], logos: [], qrCodes: [] });
   const [loadingAssets, setLoadingAssets] = useState(false);
   const [openDropdownId, setOpenDropdownId] = useState(null);
   const [selectedQrCodeForStats, setSelectedQrCodeForStats] = useState(null);
+  const [subscriptionData, setSubscriptionData] = useState(null);
+  const [loadingSubscription, setLoadingSubscription] = useState(false);
   
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -23,6 +25,51 @@ const Dashboard = ({ onCreate, onViewPricing, onBack, onEditQrCode }) => {
       document.removeEventListener('click', handleClickOutside);
     };
   }, [openDropdownId]);
+  
+  // Fetch subscription status when component mounts or authentication changes
+  useEffect(() => {
+    const fetchSubscriptionStatus = async () => {
+      if (isAuthenticated && !user?.isDemo) {
+        setLoadingSubscription(true);
+        try {
+          console.log('Dashboard: Fetching subscription status...');
+          const token = localStorage.getItem('jwtToken');
+          
+          // ADDED LOG AS REQUESTED
+          console.log('Calling /api/user/subscription');
+          console.log('Token exists:', !!token);
+          console.log('Token length:', token ? token.length : 0);
+          
+          const response = await fetch(`${API_BASE_URL}/api/user/subscription`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            
+            // ADDED LOG AS REQUESTED
+            console.log('Response:', data);
+            
+            console.log('Dashboard: Subscription data received:', data);
+            setSubscriptionData(data);
+          } else {
+            console.error('Dashboard: Failed to fetch subscription status:', response.status);
+          }
+        } catch (error) {
+          console.error('Dashboard: Error fetching subscription status:', error);
+        } finally {
+          setLoadingSubscription(false);
+        }
+      } else {
+        setSubscriptionData(null);
+      }
+    };
+    
+    fetchSubscriptionStatus();
+  }, [isAuthenticated, user?.isDemo]);
   
   // Fetch user assets when component mounts or authentication changes
   useEffect(() => {
@@ -163,6 +210,42 @@ const Dashboard = ({ onCreate, onViewPricing, onBack, onEditQrCode }) => {
       }
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleDeleteSticker = async (stickerId, stickerName) => {
+    if (!confirm(`Are you sure you want to delete the sticker "${stickerName}"? This action cannot be undone.`)) {
+      return;
+    }
+    
+    try {
+      await deleteSticker(stickerId);
+      console.log('Sticker deleted successfully');
+      // Refresh assets
+      const assets = await getUserAssets();
+      setUserAssets(assets);
+      alert('Sticker deleted successfully!');
+    } catch (error) {
+      console.error('Failed to delete sticker:', error);
+      alert('Failed to delete sticker. Please try again.');
+    }
+  };
+
+  const handleDeleteLogo = async (logoId, logoName) => {
+    if (!confirm(`Are you sure you want to delete the logo "${logoName}"? This action cannot be undone.`)) {
+      return;
+    }
+    
+    try {
+      await deleteLogo(logoId);
+      console.log('Logo deleted successfully');
+      // Refresh assets
+      const assets = await getUserAssets();
+      setUserAssets(assets);
+      alert('Logo deleted successfully!');
+    } catch (error) {
+      console.error('Failed to delete logo:', error);
+      alert('Failed to delete logo. Please try again.');
+    }
   };
 
   // Function to duplicate a QR code
@@ -319,6 +402,98 @@ const Dashboard = ({ onCreate, onViewPricing, onBack, onEditQrCode }) => {
             </div>
           </div>
         </div>
+
+        {/* Subscription Status */}
+        {isAuthenticated && (
+          <div style={{
+            background: 'rgba(0, 0, 0, 0.5)',
+            border: '1px solid rgba(0, 217, 255, 0.3)',
+            borderRadius: '16px',
+            padding: '25px',
+            marginBottom: '40px',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+              <div>
+                <div style={{ fontSize: '18px', fontWeight: '700', color: '#fff', marginBottom: '5px' }}>
+                  Subscription Status
+                </div>
+                <div style={{ fontSize: '14px', color: '#a0a0a0' }}>
+                  {loadingSubscription ? 'Loading...' : 
+                   subscriptionData?.planType === 'free' ? 'Free Plan' : 
+                   subscriptionData?.planType === 'pro' ? 'Pro Plan' : 
+                   subscriptionData?.planType === 'ultra' ? 'Ultra Plan' : 'Free Plan'}
+                </div>
+              </div>
+              <div>
+                {loadingSubscription ? (
+                  <div style={{ fontSize: '14px', color: '#aaa' }}>Loading...</div>
+                ) : subscriptionData?.subscriptionStatus === 'active' && 
+                   (subscriptionData?.planType === 'pro' || subscriptionData?.planType === 'ultra') ? (
+                  <div style={{ 
+                    fontSize: '14px', 
+                    color: '#00FF00', 
+                    fontWeight: '600',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px'
+                  }}>
+                    {subscriptionData?.planType === 'pro' ? '⭐ Pro Member' : '👑 Ultra Member'}
+                  </div>
+                ) : (
+                  <button 
+                    onClick={handlePricingClick}
+                    style={{
+                      padding: '10px 20px',
+                      background: 'linear-gradient(135deg, #FF00FF 0%, #00D9FF 100%)',
+                      border: 'none',
+                      borderRadius: '10px',
+                      color: '#000',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                    }}
+                  >
+                    Upgrade to Pro
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            {!loadingSubscription && subscriptionData?.planType === 'free' && subscriptionData?.trialEndsAt && (
+              <div style={{
+                background: 'rgba(255, 0, 255, 0.1)',
+                border: '1px solid rgba(255, 0, 255, 0.3)',
+                borderRadius: '10px',
+                padding: '15px',
+                marginTop: '15px',
+              }}>
+                <div style={{ fontSize: '14px', color: '#FF00FF', fontWeight: '600', marginBottom: '5px' }}>
+                  ⭐ Free Trial Active
+                </div>
+                <div style={{ fontSize: '12px', color: '#aaa' }}>
+                  Your trial ends in {getTrialDaysLeft()} days. Upgrade to Pro to keep dynamic QR codes after trial.
+                </div>
+              </div>
+            )}
+            
+            {!loadingSubscription && subscriptionData?.subscriptionStatus === 'active' && subscriptionData?.subscriptionEndDate && (
+              <div style={{
+                background: 'rgba(0, 217, 255, 0.1)',
+                border: '1px solid rgba(0, 217, 255, 0.3)',
+                borderRadius: '10px',
+                padding: '15px',
+                marginTop: '15px',
+              }}>
+                <div style={{ fontSize: '14px', color: '#00D9FF', fontWeight: '600', marginBottom: '5px' }}>
+                  📅 Subscription Expiry
+                </div>
+                <div style={{ fontSize: '12px', color: '#aaa' }}>
+                  Your {subscriptionData?.planType} subscription {subscriptionData?.subscriptionStatus === 'active' ? 'renews' : 'expires'} on {new Date(subscriptionData.subscriptionEndDate).toLocaleDateString()}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         <h2 style={{ fontSize: '24px', fontWeight: '600', marginBottom: '20px' }}>Your QR Codes</h2>
         {isAuthenticated ? (
@@ -811,6 +986,7 @@ const Dashboard = ({ onCreate, onViewPricing, onBack, onEditQrCode }) => {
                           fontSize: '32px',
                           cursor: 'pointer',
                           overflow: 'hidden',
+                          position: 'relative',
                         }}
                         title={sticker.name}
                       >
@@ -823,6 +999,34 @@ const Dashboard = ({ onCreate, onViewPricing, onBack, onEditQrCode }) => {
                         ) : (
                           sticker.data
                         )}
+                        {/* Delete button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteSticker(sticker.id, sticker.name);
+                          }}
+                          style={{
+                            position: 'absolute',
+                            top: '2px',
+                            right: '2px',
+                            width: '20px',
+                            height: '20px',
+                            borderRadius: '50%',
+                            background: 'rgba(255, 0, 0, 0.8)',
+                            border: 'none',
+                            color: 'white',
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '0',
+                          }}
+                          title={`Delete ${sticker.name}`}
+                        >
+                          ×
+                        </button>
                       </div>
                     ))
                   ) : (
@@ -910,6 +1114,7 @@ const Dashboard = ({ onCreate, onViewPricing, onBack, onEditQrCode }) => {
                           fontSize: '24px',
                           color: '#fff',
                           overflow: 'hidden',
+                          position: 'relative',
                         }}
                         title={logo.name}
                       >
@@ -922,6 +1127,34 @@ const Dashboard = ({ onCreate, onViewPricing, onBack, onEditQrCode }) => {
                         ) : (
                           logo.data
                         )}
+                        {/* Delete button */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteLogo(logo.id, logo.name);
+                          }}
+                          style={{
+                            position: 'absolute',
+                            top: '2px',
+                            right: '2px',
+                            width: '20px',
+                            height: '20px',
+                            borderRadius: '50%',
+                            background: 'rgba(255, 0, 0, 0.8)',
+                            border: 'none',
+                            color: 'white',
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            padding: '0',
+                          }}
+                          title={`Delete ${logo.name}`}
+                        >
+                          ×
+                        </button>
                       </div>
                     ))
                   ) : (

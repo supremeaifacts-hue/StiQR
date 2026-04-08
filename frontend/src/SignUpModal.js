@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useAuth } from './contexts/AuthContext';
+import { useAuth, API_BASE_URL } from './contexts/AuthContext';
 
 const SignUpModal = ({ onClose, onLoginClick }) => {
   const { loginWithGoogle, demoLogin } = useAuth();
@@ -66,8 +66,6 @@ const SignUpModal = ({ onClose, onLoginClick }) => {
     setLoading(true);
     
     try {
-      // Get API_BASE_URL from environment or use default
-      const API_BASE_URL = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3000';
       const response = await fetch(`${API_BASE_URL}/auth/signup`, {
         method: 'POST',
         headers: {

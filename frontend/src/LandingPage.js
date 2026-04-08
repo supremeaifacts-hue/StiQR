@@ -93,6 +93,116 @@ const LandingPage = ({ onViewDashboard, onViewPricing, qrCodeToEdit, onClearQrCo
         <div style={{ width: '100%', maxWidth: '1200px', marginTop: '10px' }}>
           <EditorPage embedded qrCodeToEdit={qrCodeToEdit} onClearQrCodeToEdit={onClearQrCodeToEdit} />
         </div>
+
+        {/* Frame #2 Showcase */}
+        <div style={{
+          marginTop: '60px',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '20px',
+        }}>
+          <h2 style={{
+            fontSize: '32px',
+            fontWeight: '700',
+            color: '#ffffff',
+            margin: '0',
+            textAlign: 'center',
+          }}>
+            Professional QR Frame Examples
+          </h2>
+          <p style={{
+            fontSize: '16px',
+            color: '#a0a0a0',
+            maxWidth: '600px',
+            textAlign: 'center',
+            margin: '0 0 20px 0',
+            lineHeight: '1.5',
+          }}>
+            Choose from beautifully designed frames to make your QR codes stand out
+          </p>
+          
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            gap: '30px',
+            maxWidth: '800px',
+          }}>
+            {/* Frame #2 Example */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '15px',
+            }}>
+              <div style={{
+                width: '200px',
+                backgroundColor: '#000000',
+                borderRadius: '14px',
+                padding: '14px 14px 10px 14px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '8px',
+                boxSizing: 'border-box',
+              }}>
+                {/* QR Code Tile */}
+                <div style={{
+                  width: '172px',
+                  height: '172px',
+                  backgroundColor: '#ffffff',
+                  borderRadius: '4px',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  overflow: 'hidden',
+                }}>
+                  {/* Sample QR pattern */}
+                  <div style={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(7, 1fr)',
+                    gridTemplateRows: 'repeat(7, 1fr)',
+                    gap: '2px',
+                    padding: '10px',
+                  }}>
+                    {Array.from({ length: 49 }).map((_, i) => (
+                      <div key={i} style={{
+                        backgroundColor: Math.random() > 0.5 ? '#000000' : 'transparent',
+                        borderRadius: '1px',
+                      }} />
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Label */}
+                <div style={{
+                  color: '#ffffff',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  letterSpacing: '2px',
+                  textTransform: 'uppercase',
+                  textAlign: 'center',
+                  paddingBottom: '2px',
+                  userSelect: 'none',
+                }}>
+                  SCAN ME
+                </div>
+              </div>
+              
+              <div style={{
+                fontSize: '14px',
+                color: '#00D9FF',
+                fontWeight: '600',
+                textAlign: 'center',
+              }}>
+                Frame #2 - Professional Black
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
     </div>
   );

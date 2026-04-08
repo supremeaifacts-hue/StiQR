@@ -68,7 +68,7 @@ const UserSchema = new mongoose.Schema({
   subscription: {
     plan: {
       type: String,
-      enum: ['free', 'pro', 'enterprise'],
+      enum: ['free', 'pro', 'ultra'],
       default: 'free'
     },
     trialEndsAt: {
@@ -89,6 +89,23 @@ const UserSchema = new mongoose.Schema({
     isActive: {
       type: Boolean,
       default: true
+    },
+    // Stripe subscription fields
+    stripeCustomerId: {
+      type: String
+    },
+    stripeSubscriptionId: {
+      type: String
+    },
+    stripePriceId: {
+      type: String
+    },
+    stripeCurrentPeriodEnd: {
+      type: Date
+    },
+    stripeCancelAtPeriodEnd: {
+      type: Boolean,
+      default: false
     }
   },
   // User assets

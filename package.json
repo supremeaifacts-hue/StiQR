@@ -1,4 +1,12 @@
 {
+  "name": "stiqr",
+  "version": "1.0.0",
+  "description": "StickerQR Application",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
   "dependencies": {
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
@@ -8,6 +16,7 @@
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.3.2",
     "passport": "^0.7.0",
-    "passport-google-oauth20": "^2.0.0"
+    "passport-google-oauth20": "^2.0.0",
+    "stripe": "^21.0.1"
   }
 }

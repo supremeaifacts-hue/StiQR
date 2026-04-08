@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useAuth } from './contexts/AuthContext';
+import React, { useState, useEffect } from 'react';
+import { useAuth, API_BASE_URL } from './contexts/AuthContext';
 import SignUpModal from './SignUpModal';
 import LoginModal from './LoginModal';
 
@@ -7,6 +7,8 @@ const TopBar = ({ onViewDashboard, onViewPricing, onSignUp, onLogin, onGoToLandi
   const { user, logout } = useAuth();
   const [showSignUpModal, setShowSignUpModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [subscriptionData, setSubscriptionData] = useState(null);
+  const [loadingSubscription, setLoadingSubscription] = useState(false);
 
   const handleSignUpClick = () => {
     setShowSignUpModal(true);
@@ -36,6 +38,43 @@ const TopBar = ({ onViewDashboard, onViewPricing, onSignUp, onLogin, onGoToLandi
     setShowLoginModal(false);
     setShowSignUpModal(true);
   };
+
+  // Fetch subscription status when component mounts or user changes
+  useEffect(() => {
+    const fetchSubscriptionStatus = async () => {
+      if (user && !user?.isDemo) {
+        setLoadingSubscription(true);
+        try {
+          console.log('TopBar: Fetching subscription status...');
+          const token = localStorage.getItem('jwtToken');
+          console.log('TopBar: Token exists:', !!token);
+          console.log('TopBar: Token length:', token ? token.length : 0);
+          const response = await fetch(`${API_BASE_URL}/api/user/subscription`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log('TopBar: Subscription data received:', data);
+            setSubscriptionData(data);
+          } else {
+            console.error('TopBar: Failed to fetch subscription status:', response.status);
+          }
+        } catch (error) {
+          console.error('TopBar: Error fetching subscription status:', error);
+        } finally {
+          setLoadingSubscription(false);
+        }
+      } else {
+        setSubscriptionData(null);
+      }
+    };
+    
+    fetchSubscriptionStatus();
+  }, [user]);
 
   return (
     <>
@@ -82,7 +121,7 @@ const TopBar = ({ onViewDashboard, onViewPricing, onSignUp, onLogin, onGoToLandi
           
           {user ? (
             // User is logged in - show user info and logout
-            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 {user.profilePicture ? (
                   <img 
@@ -111,9 +150,29 @@ const TopBar = ({ onViewDashboard, onViewPricing, onSignUp, onLogin, onGoToLandi
                     {user.displayName?.charAt(0)?.toUpperCase() || 'U'}
                   </div>
                 )}
-                <span style={{ color: '#fff', fontSize: '14px' }}>
-                  {user.displayName || user.email}
-                </span>
+                <div>
+                  <div style={{ color: '#fff', fontSize: '14px' }}>
+                    {user.displayName || user.email}
+                  </div>
+                  {!loadingSubscription && subscriptionData?.subscriptionStatus === 'active' && 
+                   (subscriptionData?.planType === 'pro' || subscriptionData?.planType === 'ultra') && (
+                    <div style={{
+                      fontSize: '10px',
+                      fontWeight: '600',
+                      color: subscriptionData.planType === 'pro' ? '#FF00FF' : '#00FF00',
+                      background: 'rgba(0, 0, 0, 0.5)',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      marginTop: '2px',
+                      textTransform: 'uppercase',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '3px'
+                    }}>
+                      {subscriptionData.planType === 'pro' ? '⭐ Pro' : '👑 Ultra'}
+                    </div>
+                  )}
+                </div>
               </div>
               <button 
                 onClick={logout}

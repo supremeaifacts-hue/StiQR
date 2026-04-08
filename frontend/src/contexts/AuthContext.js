@@ -4,7 +4,7 @@ const AuthContext = createContext({});
 
 // For EdgeOne Pages deployment, we use relative paths since the API is served from the same domain
 // In development, we can still use localhost:3000
-const API_BASE_URL = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3000';
+export const API_BASE_URL = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3000';
 
 export const useAuth = () => useContext(AuthContext);
 
@@ -192,7 +192,7 @@ export const AuthProvider = ({ children }) => {
         headers['Authorization'] = `Bearer ${token}`;
       }
       
-      const response = await fetch(`${API_BASE_URL}/assets/stickers`, {
+      const response = await fetch(`${API_BASE_URL}/api/assets/stickers`, {
         method: 'POST',
         headers,
         credentials: 'include',
@@ -236,7 +236,7 @@ export const AuthProvider = ({ children }) => {
         headers['Authorization'] = `Bearer ${token}`;
       }
       
-      const response = await fetch(`${API_BASE_URL}/assets/logos`, {
+      const response = await fetch(`${API_BASE_URL}/api/assets/logos`, {
         method: 'POST',
         headers,
         credentials: 'include',
@@ -263,6 +263,80 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const deleteSticker = async (stickerId) => {
+    try {
+      console.log('AuthContext: Deleting sticker, ID:', stickerId);
+      
+      // Get JWT token from localStorage
+      const token = localStorage.getItem('jwtToken');
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      
+      // Add Authorization header if token exists
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(`${API_BASE_URL}/api/assets/stickers/${stickerId}`, {
+        method: 'DELETE',
+        headers,
+        credentials: 'include',
+      });
+
+      console.log('AuthContext: Delete sticker response status:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('AuthContext: Failed to delete sticker:', errorText);
+        throw new Error(`Failed to delete sticker: ${response.status} ${response.statusText}`);
+      }
+
+      console.log('AuthContext: Sticker deleted successfully');
+      return true;
+    } catch (error) {
+      console.error('AuthContext: Error deleting sticker:', error);
+      throw error;
+    }
+  };
+
+  const deleteLogo = async (logoId) => {
+    try {
+      console.log('AuthContext: Deleting logo, ID:', logoId);
+      
+      // Get JWT token from localStorage
+      const token = localStorage.getItem('jwtToken');
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      
+      // Add Authorization header if token exists
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(`${API_BASE_URL}/api/assets/logos/${logoId}`, {
+        method: 'DELETE',
+        headers,
+        credentials: 'include',
+      });
+
+      console.log('AuthContext: Delete logo response status:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('AuthContext: Failed to delete logo:', errorText);
+        throw new Error(`Failed to delete logo: ${response.status} ${response.statusText}`);
+      }
+
+      console.log('AuthContext: Logo deleted successfully');
+      return true;
+    } catch (error) {
+      console.error('AuthContext: Error deleting logo:', error);
+      throw error;
+    }
+  };
+
   const saveQrCode = async (qrData, imageData, name, designCharacteristics = null) => {
     try {
       console.log('AuthContext: Saving QR code, isAuthenticated:', !!user);
@@ -281,7 +355,7 @@ export const AuthProvider = ({ children }) => {
         headers['Authorization'] = `Bearer ${token}`;
       }
       
-      const response = await fetch(`${API_BASE_URL}/assets/qrcodes`, {
+      const response = await fetch(`${API_BASE_URL}/api/assets/qrcodes`, {
         method: 'POST',
         headers,
         credentials: 'include',
@@ -321,7 +395,7 @@ export const AuthProvider = ({ children }) => {
 
   const getUserAssets = async () => {
     try {
-      console.log('AuthContext: Fetching user assets from', `${API_BASE_URL}/assets`);
+      console.log('AuthContext: Fetching user assets from', `${API_BASE_URL}/api/assets`);
       
       // Get JWT token from localStorage
       const token = localStorage.getItem('jwtToken');
@@ -332,7 +406,7 @@ export const AuthProvider = ({ children }) => {
         headers['Authorization'] = `Bearer ${token}`;
       }
       
-      const response = await fetch(`${API_BASE_URL}/assets`, {
+      const response = await fetch(`${API_BASE_URL}/api/assets`, {
         method: 'GET',
         headers,
         credentials: 'include',
@@ -411,6 +485,8 @@ export const AuthProvider = ({ children }) => {
     setError,
     saveSticker,
     saveLogo,
+    deleteSticker,
+    deleteLogo,
     saveQrCode,
     getUserAssets,
     canCreateDynamicQrCodes,

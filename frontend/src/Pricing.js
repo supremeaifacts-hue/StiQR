@@ -1,7 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import TopBar from './TopBar';
+import { useAuth, API_BASE_URL } from './contexts/AuthContext';
 
 const Pricing = ({ onViewDashboard, onBack }) => {
+  const { isAuthenticated, user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  
   const handlePricingClick = () => {
     // Already on pricing page
     console.log('Already on pricing');
@@ -13,6 +18,45 @@ const Pricing = ({ onViewDashboard, onBack }) => {
 
   const handleLoginClick = () => {
     console.log('Login clicked');
+  };
+
+  const handleSubscribe = async (plan) => {
+    if (!isAuthenticated) {
+      alert('Please login to subscribe');
+      return;
+    }
+    
+    setLoading(true);
+    setError('');
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/stripe/create-checkout-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('jwtToken')}`
+        },
+        credentials: 'include',
+        body: JSON.stringify({ plan })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create checkout session');
+      }
+      
+      const data = await response.json();
+      
+      // Redirect to Stripe checkout
+      window.location.href = data.url;
+      
+    } catch (error) {
+      console.error('Error creating checkout session:', error);
+      setError(error.message || 'Failed to create checkout session');
+      alert(`Error: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const pricingPlans = [
@@ -200,22 +244,31 @@ const Pricing = ({ onViewDashboard, onBack }) => {
                 </ul>
               </div>
 
-              <button style={{
-                padding: '16px',
-                background: `linear-gradient(135deg, ${plan.color} 0%, ${plan.color}80 100%)`,
-                border: 'none',
-                borderRadius: '12px',
-                color: '#000',
-                fontWeight: '700',
-                cursor: 'pointer',
-                fontSize: '16px',
-                transition: 'all 0.3s ease',
-                ':hover': {
-                  transform: 'scale(1.05)',
-                  boxShadow: `0 10px 20px ${plan.color}80`,
-                }
-              }}>
-                {plan.name === 'Free' ? 'Get Started Free' : `Choose ${plan.name}`}
+              <button 
+                onClick={() => plan.name !== 'Free' && handleSubscribe(plan.name.toLowerCase())}
+                disabled={loading && plan.name !== 'Free'}
+                style={{
+                  padding: '16px',
+                  background: `linear-gradient(135deg, ${plan.color} 0%, ${plan.color}80 100%)`,
+                  border: 'none',
+                  borderRadius: '12px',
+                  color: '#000',
+                  fontWeight: '700',
+                  cursor: plan.name === 'Free' ? 'default' : 'pointer',
+                  fontSize: '16px',
+                  transition: 'all 0.3s ease',
+                  opacity: loading && plan.name !== 'Free' ? 0.7 : 1,
+                  ':hover': plan.name === 'Free' ? {} : {
+                    transform: 'scale(1.05)',
+                    boxShadow: `0 10px 20px ${plan.color}80`,
+                  }
+                }}
+              >
+                {plan.name === 'Free' 
+                  ? 'Get Started Free' 
+                  : loading 
+                    ? 'Processing...' 
+                    : `Choose ${plan.name}`}
               </button>
             </div>
           ))}

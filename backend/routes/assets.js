@@ -657,4 +657,56 @@ router.get('/assets/qrcodes/:id/statistics', isAuthenticated, async (req, res) =
   }
 });
 
+// Get user subscription status
+router.get('/user/subscription', isAuthenticated, async (req, res) => {
+  try {
+    // ADDED LOGS AS REQUESTED
+    console.log('=== SUBSCRIPTION CHECK ===');
+    console.log('User ID:', req.user?._id);
+    console.log('User email:', req.user?.email);
+    
+    const user = await User.findById(req.user._id);
+    
+    if (!user) {
+      console.log('User found? No');
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // ADDED LOGS AS REQUESTED
+    console.log('Subscription status from DB:', user.subscriptionStatus);
+    console.log('Plan type from DB:', user.planType);
+    console.log('User subscription object:', user.subscription);
+    console.log('User found? Yes');
+
+    // Determine subscription status based on plan and isActive
+    const subscriptionStatus = user.subscription.isActive && 
+                              (user.subscription.plan === 'pro' || user.subscription.plan === 'ultra') 
+                              ? 'active' : 'inactive';
+    
+    // Determine subscription end date
+    let subscriptionEndDate = null;
+    if (user.subscription.stripeCurrentPeriodEnd) {
+      subscriptionEndDate = user.subscription.stripeCurrentPeriodEnd;
+    } else if (user.subscription.expiresAt) {
+      subscriptionEndDate = user.subscription.expiresAt;
+    } else if (user.subscription.trialEndsAt) {
+      subscriptionEndDate = user.subscription.trialEndsAt;
+    }
+
+    res.json({
+      subscriptionStatus,
+      planType: user.subscription.plan,
+      subscriptionEndDate,
+      isActive: user.subscription.isActive,
+      stripeCustomerId: user.subscription.stripeCustomerId,
+      stripeSubscriptionId: user.subscription.stripeSubscriptionId,
+      trialEndsAt: user.subscription.trialEndsAt,
+      subscribedAt: user.subscription.subscribedAt
+    });
+  } catch (error) {
+    console.error('Error fetching user subscription:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 module.exports = router;

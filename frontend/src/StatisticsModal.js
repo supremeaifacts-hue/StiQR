@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from './contexts/AuthContext';
+import { useAuth, API_BASE_URL } from './contexts/AuthContext';
 
 const StatisticsModal = ({ qrCode, onClose }) => {
   const [scanData, setScanData] = useState([]);
@@ -21,7 +21,7 @@ const StatisticsModal = ({ qrCode, onClose }) => {
         setError(null);
         
         const token = await getToken();
-        const response = await fetch(`/assets/qrcodes/${qrCode.id}/statistics`, {
+        const response = await fetch(`${API_BASE_URL}/api/assets/qrcodes/${qrCode.id}/statistics`, {
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'

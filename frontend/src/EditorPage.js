@@ -559,7 +559,7 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
     }}>
       {/* Left Sidebar */}
       <div style={{
-        width: '440px',
+        width: '528px',
         background: 'rgba(0, 0, 0, 0.5)',
         padding: '30px',
         borderRadius: '24px',
@@ -1162,6 +1162,63 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
                         Recommended: PNG with transparent background
                       </div>
                       
+                      {/* Selected Logo Display */}
+                      {selectedLogo && (
+                        <div style={{
+                          marginTop: '15px',
+                          padding: '15px',
+                          background: 'rgba(0, 217, 255, 0.1)',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '10px',
+                        }}>
+                          <div style={{ fontSize: '12px', color: '#00D9FF', fontWeight: '600' }}>
+                            Selected Logo
+                          </div>
+                          <div style={{
+                            width: '80px',
+                            height: '80px',
+                            background: 'rgba(255, 255, 255, 0.1)',
+                            border: '2px solid #00D9FF',
+                            borderRadius: '8px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            overflow: 'hidden',
+                          }}>
+                            {selectedLogo.startsWith('data:') ? (
+                              <img 
+                                src={selectedLogo} 
+                                alt="Selected logo" 
+                                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                              />
+                            ) : (
+                              <div style={{ fontSize: '24px', color: '#fff' }}>{selectedLogo}</div>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => setSelectedLogo(null)}
+                            style={{
+                              padding: '4px 12px',
+                              background: 'rgba(255, 0, 0, 0.2)',
+                              border: '1px solid rgba(255, 0, 0, 0.5)',
+                              borderRadius: '4px',
+                              color: '#ff6b6b',
+                              fontSize: '11px',
+                              fontWeight: '600',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                          >
+                            <span>✕</span> Remove Logo
+                          </button>
+                        </div>
+                      )}
+                      
                       {/* Saved Logos Section */}
                       <div style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid rgba(0, 217, 255, 0.2)' }}>
                         {isAuthenticated ? (
@@ -1266,17 +1323,39 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
               {selectedSticker && (
                 <div style={{
                   marginTop: '10px',
-                  textAlign: 'center',
-                  fontSize: '24px',
                   padding: '10px',
                   background: 'rgba(0, 217, 255, 0.1)',
                   borderRadius: '8px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '8px',
                 }}>
-                  {selectedSticker.startsWith('data:') ? (
-                    <img src={selectedSticker} alt="sticker" style={{ maxWidth: '60px', maxHeight: '60px' }} />
-                  ) : (
-                    selectedSticker
-                  )}
+                  <div style={{ fontSize: '24px', textAlign: 'center' }}>
+                    {selectedSticker.startsWith('data:') ? (
+                      <img src={selectedSticker} alt="sticker" style={{ maxWidth: '60px', maxHeight: '60px' }} />
+                    ) : (
+                      selectedSticker
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setSelectedSticker(null)}
+                    style={{
+                      padding: '4px 12px',
+                      background: 'rgba(255, 0, 0, 0.2)',
+                      border: '1px solid rgba(255, 0, 0, 0.5)',
+                      borderRadius: '4px',
+                      color: '#ff6b6b',
+                      fontSize: '11px',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <span>✕</span> Remove Sticker
+                  </button>
                 </div>
               )}
             </div>
@@ -1293,7 +1372,7 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
         padding: '60px 40px',
       }}>
         <div style={{
-          padding: '80px', // Reduced by 50px (130px - 50px)
+          padding: '64px', // Reduced proportionally to scale down QR preview
           background: '#fff',
           borderRadius: '20px',
           border: '2px solid #00D9FF',
