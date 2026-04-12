@@ -135,14 +135,81 @@ export const useQRRenderer = ({
         );
       });
 
+      // Apply frame effects - MUST be done BEFORE drawing QR code for frame1
+      if (selectedFrame === 'frame1') {
+        // Frame #1 specifications according to user requirements
+        // All measurements scale with qrSize
+        const padding = 14 * (qrSize / 300); // 14px when qrSize=300
+        const bottomPadding = 30 * (qrSize / 300); // 30px extra at bottom for text
+        const qrCodeMargin = 10 * (qrSize / 300); // 10px margin inside white square
+        
+        // Frame dimensions
+        const frameWidth = qrSize + (padding * 2);
+        const frameHeight = qrSize + padding + bottomPadding;
+        const borderRadius = 14 * (qrSize / 300);
+        const qrAreaBorderRadius = 4 * (qrSize / 300);
+        
+        // Position frame to be centered on canvas
+        const frameX = (canvasWidth - frameWidth) / 2;
+        const frameY = (canvasHeight - frameHeight) / 2;
+        
+        // White square position (where QR code goes)
+        const whiteSquareX = frameX + padding;
+        const whiteSquareY = frameY + padding;
+        const whiteSquareSize = qrSize;
+        
+        // 1. Draw black rounded rectangle background (outer container)
+        ctx.fillStyle = '#000000';
+        ctx.beginPath();
+        ctx.roundRect(frameX, frameY, frameWidth, frameHeight, borderRadius);
+        ctx.fill();
+        
+        // 2. Draw white square inside for QR code
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.roundRect(whiteSquareX, whiteSquareY, whiteSquareSize, whiteSquareSize, qrAreaBorderRadius);
+        ctx.fill();
+        
+        // 3. Update QR code position to be inside white square with margin
+        qrOffsetX = whiteSquareX + qrCodeMargin;
+        qrOffsetY = whiteSquareY + qrCodeMargin;
+        qrRenderSize = qrSize - (qrCodeMargin * 2);
+      }
+
       ctx.drawImage(tempCanvas, qrOffsetX, qrOffsetY);
 
-      // Apply frame effects
-      if (selectedFrame === 'frame1') {
-        const frameBorderWidth = 10;
-        ctx.strokeStyle = frameColor;
-        ctx.lineWidth = frameBorderWidth;
-        ctx.strokeRect(qrOffsetX + frameBorderWidth / 2, qrOffsetY + frameBorderWidth / 2, qrRenderSize - frameBorderWidth, qrRenderSize - frameBorderWidth);
+      // Draw text for frame1
+        ctx.fillStyle = '#ffffff'; // White text as per spec
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.font = `bold ${labelFontSize}px Arial`; // Bold 700 as per spec
+        
+        // Truncate text if too long
+        const maxWidth = outerWidth * 0.9;
+        let text = framePhrase || 'SCAN ME';
+        const metrics = ctx.measureText(text);
+        
+        if (metrics.width > maxWidth) {
+          while (text.length > 3 && ctx.measureText(text + '...').width > maxWidth) {
+            text = text.slice(0, -1);
+          }
+          text = text + '...';
+        }
+        
+        // Apply letter spacing (2px when qrSize=300)
+        const letterSpacing = 2 * (qrSize / 300);
+        const textX = frameX + outerWidth / 2;
+        
+        // Draw text with letter spacing
+        if (letterSpacing > 0) {
+          let currentX = textX - (metrics.width + (text.length - 1) * letterSpacing) / 2;
+          for (let i = 0; i < text.length; i++) {
+            ctx.fillText(text[i], currentX, labelY);
+            currentX += ctx.measureText(text[i]).width + letterSpacing;
+          }
+        } else {
+          ctx.fillText(text, textX, labelY);
+        }
       }
 
       // Apply sticker if selected (centered on the QR area)
