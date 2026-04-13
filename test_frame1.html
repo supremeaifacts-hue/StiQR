@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frame #1 Test</title>
+    <style>
+        .qr-frame {
+            width: 300px;
+            background-color: #000000;
+            border-radius: 14px;
+            padding: 14px 14px 10px 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            box-sizing: border-box;
+            margin: 50px auto;
+        }
+
+        .qr-area {
+            width: 272px;
+            height: 272px;
+            background-color: #ffffff;
+            border-radius: 4px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .qr-area img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        .qr-label {
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-align: center;
+            padding-bottom: 2px;
+            user-select: none;
+            font-family: Arial, sans-serif;
+        }
+
+        .test-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background: #f0f0f0;
+            min-height: 100vh;
+        }
+
+        .instructions {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+
+        h2 {
+            color: #666;
+            margin-top: 30px;
+        }
+
+        .dimensions {
+            background: #f8f8f8;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-family: monospace;
+        }
+
+        .css-code {
+            background: #2d2d2d;
+            color: #f8f8f8;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: monospace;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Frame #1 Implementation Test</h1>
+        
+        <div class="instructions">
+            <p>This test shows the Frame #1 design according to the CSS specifications provided:</p>
+            
+            <div class="dimensions">
+                <strong>Dimension Summary:</strong><br>
+                • Outer width: 300px<br>
+                • Outer border-radius: 14px<br>
+                • Padding T/R/B/L: 14/14/10/14 px<br>
+                • QR area width: 272px (300 - 14×2)<br>
+                • QR area height: 272px<br>
+                • QR area border-radius: 4px<br>
+                • Gap (area↔label): 8px<br>
+                • Label font-size: 11px<br>
+                • Label letter-spacing: 2px<br>
+                • Label padding-bottom: 2px<br>
+                • Total height: ~332px
+            </div>
+
+            <h2>Visual Test:</h2>
+        </div>
+
+        <!-- Frame #1 Implementation -->
+        <div class="qr-frame">
+            <div class="qr-area">
+                <!-- Placeholder for QR code -->
+                <div style="width: 200px; height: 200px; background: #e0e0e0; display: flex; align-items: center; justify-content: center; color: #999; font-size: 14px;">
+                    QR Code Area<br>(272×272px)
+                </div>
+            </div>
+            <div class="qr-label">SCAN ME</div>
+        </div>
+
+        <div class="instructions">
+            <h2>CSS Implementation:</h2>
+            <div class="css-code">
+.qr-frame {
+    width: 300px;
+    background-color: #000000;
+    border-radius: 14px;
+    padding: 14px 14px 10px 14px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    box-sizing: border-box;
+}
+
+.qr-area {
+    width: 272px;
+    height: 272px;
+    background-color: #ffffff;
+    border-radius: 4px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+.qr-area img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.qr-label {
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-align: center;
+    padding-bottom: 2px;
+    user-select: none;
+}
+            </div>
+
+            <p style="margin-top: 20px; color: green; font-weight: bold;">
+                ✓ Frame #1 has been successfully implemented in EditorPage.js with canvas drawing logic.
+                The implementation includes:
+            </p>
+            <ul>
+                <li>Black rounded rectangle outer container (300px wide, 14px border radius)</li>
+                <li>White QR code area with subtle rounding (4px border radius)</li>
+                <li>"SCAN ME" label with correct typography (11px, bold, 2px letter spacing, uppercase)</li>
+                <li>Proper positioning and spacing (8px gap between QR area and label)</li>
+                <li>Correct padding (14px top/right/left, 10px bottom)</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

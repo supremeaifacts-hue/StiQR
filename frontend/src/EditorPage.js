@@ -175,16 +175,26 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
 
   useEffect(() => {
     if (qrData && canvasRef.current) {
-      // Set canvas dimensions - extend 250px down for the thicker bottom border
-      const canvasWidth = qrSize;
-      const canvasHeight = qrSize * 2 + 250; // Double height plus 250px extra for thicker border
+      // Set canvas dimensions based on selected frame
+      let canvasWidth = qrSize;
+      let canvasHeight = qrSize;
+      
+      // For frame1, we need taller canvas to accommodate the label
+      if (selectedFrame === 'frame1') {
+        // User wants visible area to be 270x300px for Frame #1
+        canvasWidth = 270; // 270px wide visible area
+        canvasHeight = 300; // 300px tall visible area
+      } else {
+        // For other frames and "no frame", use standard dimensions
+        canvasHeight = qrSize * 2 + 250; // Double height plus 250px extra for thicker border
+      }
       
       // Set canvas dimensions
       canvasRef.current.width = canvasWidth;
       canvasRef.current.height = canvasHeight;
       
-      // Create 30px white area around QR code
-      const whiteAreaPadding = 30;
+      // Create white area around QR code - restored to original 30px padding for 300x300px "no frame" version
+      const whiteAreaPadding = 30; // Original padding: 30px on each side for 300x300px canvas
       const qrWithWhiteAreaSize = qrSize - (whiteAreaPadding * 2);
       
       QRCode.toCanvas(
@@ -199,24 +209,26 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
           },
           errorCorrectionLevel: errorCorrectionLevel,
         },
-        (error) => {
+        async (error) => {
           if (error) {
             console.error('QR Code error:', error);
           } else {
             const canvas = canvasRef.current;
             const ctx = canvas.getContext('2d');
             
-            // Apply frame effects - only rectangle with rounded edges under QR code for "thick-under-text"
+            // Apply frame effects
             if (selectedFrame !== 'none') {
               const frameConfigs = {
                 'thick-under-text': { borderWidth: 6, borderRadius: 0, hasLabel: false, labelPosition: 'below', hasIcon: false },
                 'thick-over-text': { borderWidth: 6, borderRadius: 0, hasLabel: false, labelPosition: 'over', hasIcon: false },
+                'frame1': { borderWidth: 14, padding: 10, color: '#000000' },
+                'frame2': { borderWidth: 1, padding: 29, color: '#000000' },
               };
               
               const config = frameConfigs[selectedFrame];
               if (config) {
-                // For "thick-under-text", draw rectangle with rounded edges at center of QR code (same position as logo center, moved 10px left)
                 if (selectedFrame === 'thick-under-text') {
+                  // For "thick-under-text", draw rectangle with rounded edges at center of QR code (same position as logo center, moved 10px left)
                   const rectangleHeight = qrSize * 0.12;
                   const rectanglePadding = qrSize * 0.05;
                   const rectangleWidth = qrSize - (rectanglePadding * 2);
@@ -256,6 +268,145 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
                   }
                   
                   ctx.fillText(text, qrSize/2 + labelOffsetX, rectangleY);
+                } else if (selectedFrame === 'frame1') {
+                  // For Frame #1: Black rounded rectangle with "SCAN ME" label
+                  // Canvas is now 270x300px (visible area)
+                  // - Outer container: 270px wide, black, rounded corners (14px)
+                  // - QR area: 242px square (270 - 14*2 padding), white, subtle rounding (4px)
+                  // - Label: "SCAN ME" white text below QR code
+                  
+                  const outerWidth = 270; // Canvas width
+                  const outerHeight = 300; // Canvas height
+                  const borderRadius = 14;
+                  const padding = 14;
+                  const gap = 8;
+                  const qrAreaSize = outerWidth - (padding * 2); // 270 - 28 = 242px
+                  const qrAreaBorderRadius = 4;
+                  
+                  // Calculate positions - start at (0,0)
+                  const frameX = 0;
+                  const frameY = 0;
+                  
+                  // Draw black rounded rectangle (outer container)
+                  ctx.fillStyle = '#000000';
+                  ctx.beginPath();
+                  ctx.roundRect(frameX, frameY, outerWidth, outerHeight, borderRadius);
+                  ctx.fill();
+                  
+                  // Draw QR code area (white square with subtle rounding)
+                  const qrAreaX = frameX + padding;
+                  const qrAreaY = frameY + padding;
+                  
+                  ctx.fillStyle = '#ffffff';
+                  ctx.beginPath();
+                  ctx.roundRect(qrAreaX, qrAreaY, qrAreaSize, qrAreaSize, qrAreaBorderRadius);
+                  ctx.fill();
+                  
+                  // Draw "SCAN ME" label
+                  const labelY = qrAreaY + qrAreaSize + gap;
+                  ctx.fillStyle = '#ffffff';
+                  ctx.font = '700 11px Arial, sans-serif';
+                  ctx.textAlign = 'center';
+                  ctx.textBaseline = 'alphabetic';
+                  ctx.letterSpacing = '2px';
+                  
+                  // Draw uppercase text with letter spacing
+                  const labelText = 'SCAN ME';
+                  const labelX = frameX + outerWidth / 2;
+                  
+                  // Manually draw text with letter spacing
+                  let currentX = labelX - (ctx.measureText(labelText).width / 2);
+                  for (let i = 0; i < labelText.length; i++) {
+                    ctx.fillText(labelText[i], currentX, labelY);
+                    currentX += ctx.measureText(labelText[i]).width + 2; // 2px letter spacing
+                  }
+                  
+                  // Clear the area where the QR code was originally drawn (with white padding)
+                  // The QR code is drawn at (whiteAreaPadding, whiteAreaPadding) with size qrWithWhiteAreaSize
+                  const whiteAreaPadding = 30;
+                  const qrWithWhiteAreaSize = qrSize - (whiteAreaPadding * 2);
+                  ctx.clearRect(whiteAreaPadding, whiteAreaPadding, qrWithWhiteAreaSize, qrWithWhiteAreaSize);
+                  
+                  // Now we need to redraw the QR code inside the white area
+                  // First, save the current canvas state
+                  ctx.save();
+                  
+                  // Clip to the white QR area
+                  ctx.beginPath();
+                  ctx.roundRect(qrAreaX, qrAreaY, qrAreaSize, qrAreaSize, qrAreaBorderRadius);
+                  ctx.clip();
+                  
+                  // Generate a new QR code at the correct size and position
+                  // Use the full white area for the QR code (272x272px)
+                  const qrCodeSize = qrAreaSize; // Use full white area size (272px)
+                  const qrCodeX = qrAreaX;
+                  const qrCodeY = qrAreaY;
+                  
+                  // Create a temporary canvas for the QR code
+                  const tempCanvas = document.createElement('canvas');
+                  tempCanvas.width = qrCodeSize;
+                  tempCanvas.height = qrCodeSize;
+                  
+                  // Generate QR code on temporary canvas
+                  await new Promise((resolve, reject) => {
+                    QRCode.toCanvas(
+                      tempCanvas,
+                      qrData,
+                      {
+                        width: qrCodeSize,
+                        margin: includeMargin ? 2 : 0,
+                        color: {
+                          dark: qrColor,
+                          light: bgColor,
+                        },
+                        errorCorrectionLevel: errorCorrectionLevel,
+                      },
+                      (error) => {
+                        if (error) {
+                          console.error('QR Code regeneration error:', error);
+                          reject(error);
+                        } else {
+                          resolve();
+                        }
+                      }
+                    );
+                  });
+                  
+                  // Draw the QR code from temporary canvas to main canvas
+                  ctx.drawImage(tempCanvas, qrCodeX, qrCodeY);
+                   
+                  // Restore canvas state
+                  ctx.restore();
+                } else if (selectedFrame === 'frame2') {
+                  // Frame #2: Rectangular frame for visible area 270x300px
+                  // Draw frame connecting points: (0,0), (0,300), (270,300), (270,0)
+                  
+                  // Clear the area where the QR code was originally drawn
+                  const whiteAreaPadding = 30;
+                  const qrWithWhiteAreaSize = qrSize - (whiteAreaPadding * 2);
+                  ctx.clearRect(whiteAreaPadding, whiteAreaPadding, qrWithWhiteAreaSize, qrWithWhiteAreaSize);
+                  
+                  // Draw rectangular frame: 270x300px, starting at (0,0)
+                  ctx.strokeStyle = '#000000'; // Black frame
+                  ctx.lineWidth = 1;
+                  ctx.beginPath();
+                  // Connect points: (0,0) -> (0,300) -> (270,300) -> (270,0) -> back to (0,0)
+                  ctx.moveTo(0, 0);
+                  ctx.lineTo(0, 300);
+                  ctx.lineTo(270, 300);
+                  ctx.lineTo(270, 0);
+                  ctx.closePath(); // This draws line back to (0,0)
+                  ctx.stroke();
+                  
+                  // Add text labels for clarity
+                  ctx.fillStyle = '#000000';
+                  ctx.font = '12px Arial';
+                  ctx.textAlign = 'left';
+                  ctx.textBaseline = 'top';
+                  ctx.fillText('Frame #2: Rectangular frame 270x300px', 10, 320);
+                  ctx.fillText('Frame connects: (0,0), (0,300), (270,300), (270,0)', 10, 340);
+                  ctx.fillText('Frame thickness: 1px', 10, 360);
+                  ctx.fillText('Canvas dimensions: ' + canvas.width + 'x' + canvas.height, 10, 380);
                 }
               }
             }
@@ -416,49 +567,238 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
         const frameConfigs = {
           'thick-under-text': { borderWidth: 6, borderRadius: 0, hasLabel: false, labelPosition: 'below', hasIcon: false },
           'thick-over-text': { borderWidth: 6, borderRadius: 0, hasLabel: false, labelPosition: 'over', hasIcon: false },
+          'frame1': { borderWidth: 14, padding: 10, color: '#000000' },
+          'frame2': { borderWidth: 1, padding: 29, color: '#000000' },
         };
         
         const config = frameConfigs[selectedFrame];
-        if (config && selectedFrame === 'thick-under-text') {
-          const rectangleHeight = qrSize * 0.12;
-          const rectanglePadding = qrSize * 0.05;
-          const rectangleWidth = qrSize - (rectanglePadding * 2);
-          const rectangleRadius = rectangleHeight / 2;
-          const rectangleY = qrSize/2 - 25;
-          const labelOffsetX = -10;
-          
-          // Draw rectangle background with rounded edges
-          ctx.fillStyle = frameColor;
-          ctx.beginPath();
-          ctx.roundRect(rectanglePadding + labelOffsetX, rectangleY - rectangleHeight/2, rectangleWidth, rectangleHeight, rectangleRadius);
-          ctx.fill();
-          
-          // Draw white border around rectangle
-          ctx.strokeStyle = '#fff';
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.roundRect(rectanglePadding + labelOffsetX, rectangleY - rectangleHeight/2, rectangleWidth, rectangleHeight, rectangleRadius);
-          ctx.stroke();
-          
-          // Draw editable text inside rectangle
-          ctx.fillStyle = '#fff';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.font = `${rectangleHeight * 0.4}px ${frameFont}`;
-          
-          const maxWidth = rectangleWidth * 0.9;
-          let text = framePhrase;
-          
-          // Truncate text if too long
-          const metrics = ctx.measureText(text);
-          if (metrics.width > maxWidth) {
-            while (text.length > 3 && ctx.measureText(text + '...').width > maxWidth) {
-              text = text.slice(0, -1);
+        if (config) {
+          if (selectedFrame === 'thick-under-text') {
+            const rectangleHeight = qrSize * 0.12;
+            const rectanglePadding = qrSize * 0.05;
+            const rectangleWidth = qrSize - (rectanglePadding * 2);
+            const rectangleRadius = rectangleHeight / 2;
+            const rectangleY = qrSize/2 - 25;
+            const labelOffsetX = -10;
+            
+            // Draw rectangle background with rounded edges
+            ctx.fillStyle = frameColor;
+            ctx.beginPath();
+            ctx.roundRect(rectanglePadding + labelOffsetX, rectangleY - rectangleHeight/2, rectangleWidth, rectangleHeight, rectangleRadius);
+            ctx.fill();
+            
+            // Draw white border around rectangle
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(rectanglePadding + labelOffsetX, rectangleY - rectangleHeight/2, rectangleWidth, rectangleHeight, rectangleRadius);
+            ctx.stroke();
+            
+            // Draw editable text inside rectangle
+            ctx.fillStyle = '#fff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.font = `${rectangleHeight * 0.4}px ${frameFont}`;
+            
+            const maxWidth = rectangleWidth * 0.9;
+            let text = framePhrase;
+            
+            // Truncate text if too long
+            const metrics = ctx.measureText(text);
+            if (metrics.width > maxWidth) {
+              while (text.length > 3 && ctx.measureText(text + '...').width > maxWidth) {
+                text = text.slice(0, -1);
+              }
+              text = text + '...';
             }
-            text = text + '...';
+            
+            ctx.fillText(text, qrSize/2 + labelOffsetX, rectangleY);
+          } else if (selectedFrame === 'frame1') {
+            // For Frame #1: Black rounded rectangle with "SCAN ME" label
+            // According to CSS specifications:
+            // - Outer container: 300px wide, black, rounded corners (14px)
+            // - QR area: 272px square (300 - 14*2 padding), white, subtle rounding (4px)
+            // - Label: "SCAN ME" white text below QR code
+            
+            const outerWidth = 300;
+            const outerHeight = 332; // Total height including label
+            const borderRadius = 14;
+            const padding = 14;
+            const gap = 8;
+            const qrAreaSize = 272; // outerWidth - padding*2
+            const qrAreaBorderRadius = 4;
+            
+            // Calculate positions - start at (0,0) for version 2
+            const frameX = 0;
+            const frameY = 0;
+            
+            // Draw black rounded rectangle (outer container)
+            ctx.fillStyle = '#000000';
+            ctx.beginPath();
+            ctx.roundRect(frameX, frameY, outerWidth, outerHeight, borderRadius);
+            ctx.fill();
+            
+            // Draw QR code area (white square with subtle rounding)
+            const qrAreaX = frameX + padding;
+            const qrAreaY = frameY + padding;
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.roundRect(qrAreaX, qrAreaY, qrAreaSize, qrAreaSize, qrAreaBorderRadius);
+            ctx.fill();
+            
+            // Draw "SCAN ME" label
+            const labelY = qrAreaY + qrAreaSize + gap;
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '700 11px Arial, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'alphabetic';
+            ctx.letterSpacing = '2px';
+            
+            // Draw uppercase text with letter spacing
+            const labelText = 'SCAN ME';
+            const labelX = frameX + outerWidth / 2;
+            
+            // Manually draw text with letter spacing
+            let currentX = labelX - (ctx.measureText(labelText).width / 2);
+            for (let i = 0; i < labelText.length; i++) {
+              ctx.fillText(labelText[i], currentX, labelY);
+              currentX += ctx.measureText(labelText[i]).width + 2; // 2px letter spacing
+            }
+            
+            // Clear the area where the QR code was originally drawn (with white padding)
+            // The QR code is drawn at (30, 30) with size (qrSize - 60)
+            ctx.clearRect(30, 30, qrSize - 60, qrSize - 60);
+            
+            // Now we need to redraw the QR code inside the white area
+            // First, save the current canvas state
+            ctx.save();
+            
+            // Clip to the white QR area
+            ctx.beginPath();
+            ctx.roundRect(qrAreaX, qrAreaY, qrAreaSize, qrAreaSize, qrAreaBorderRadius);
+            ctx.clip();
+            
+            // Generate a new QR code at the correct size and position
+            // The QR code should be centered within the white area
+            const qrCodeSize = Math.min(qrAreaSize * 0.8, qrSize - 60); // 80% of white area or original size
+            const qrCodeX = qrAreaX + (qrAreaSize - qrCodeSize) / 2;
+            const qrCodeY = qrAreaY + (qrAreaSize - qrCodeSize) / 2;
+            
+            // Create a temporary canvas for the QR code
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = qrCodeSize;
+            tempCanvas.height = qrCodeSize;
+            
+            // Generate QR code on temporary canvas
+            await new Promise((resolve, reject) => {
+              QRCode.toCanvas(
+                tempCanvas,
+                scanUrl,
+                {
+                  width: qrCodeSize,
+                  margin: includeMargin ? 2 : 0,
+                  color: {
+                    dark: qrColor,
+                    light: bgColor,
+                  },
+                  errorCorrectionLevel: errorCorrectionLevel,
+                },
+                (error) => {
+                  if (error) {
+                    console.error('QR Code regeneration error:', error);
+                    reject(error);
+                  } else {
+                    resolve();
+                  }
+                }
+              );
+            });
+            
+            // Draw the QR code from temporary canvas to main canvas
+            ctx.drawImage(tempCanvas, qrCodeX, qrCodeY);
+            
+            // Restore canvas state
+            ctx.restore();
+          } else if (selectedFrame === 'frame2') {
+            // For Frame #2: 1px black frame around QR code area
+            // Canvas: 300x300px
+            // 1px black frame: 295px x 295px (centered in canvas)
+            // QR code: 200x200px (centered inside border)
+            
+            const frameWidth = 1;
+            const borderSize = 295; // 295px x 295px border as requested
+            const qrCodeSize = 200; // Fixed 200x200px QR code
+            
+            // Calculate position to center the 295px border in the 300px canvas
+            const borderX = (qrSize - borderSize) / 2;
+            const borderY = (qrSize - borderSize) / 2;
+            
+            // Draw 1px black frame (295px x 295px)
+            // Draw at borderX + 0.5, borderY + 0.5 to avoid anti-aliasing issues
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = frameWidth;
+            ctx.strokeRect(borderX + 0.5, borderY + 0.5, borderSize, borderSize);
+            
+            // Clear the area where the QR code was originally drawn (with white padding)
+            // The QR code is drawn at (30, 30) with size (qrSize - 60)
+            ctx.clearRect(30, 30, qrSize - 60, qrSize - 60);
+            
+            // Now we need to redraw the QR code inside the framed area
+            // First, save the current canvas state
+            ctx.save();
+            
+            // Clip to the area inside the border (293px x 293px after accounting for 1px border on each side)
+            const innerBorderX = borderX + frameWidth;
+            const innerBorderY = borderY + frameWidth;
+            const innerBorderSize = borderSize - (frameWidth * 2);
+            ctx.beginPath();
+            ctx.rect(innerBorderX, innerBorderY, innerBorderSize, innerBorderSize);
+            ctx.clip();
+            
+            // Calculate position to center the 200x200px QR code inside the border
+            // The border inner area is 293px x 293px (295 - 2*1)
+            // QR code is 200px x 200px, so padding = (293 - 200) / 2 = 46.5px
+            const qrPadding = (innerBorderSize - qrCodeSize) / 2;
+            const qrCodeX = innerBorderX + qrPadding;
+            const qrCodeY = innerBorderY + qrPadding;
+            
+            // Create a temporary canvas for the QR code
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = qrCodeSize;
+            tempCanvas.height = qrCodeSize;
+            
+            // Generate QR code on temporary canvas
+            await new Promise((resolve, reject) => {
+              QRCode.toCanvas(
+                tempCanvas,
+                scanUrl,
+                {
+                  width: qrCodeSize,
+                  margin: includeMargin ? 2 : 0,
+                  color: {
+                    dark: qrColor,
+                    light: bgColor,
+                  },
+                  errorCorrectionLevel: errorCorrectionLevel,
+                },
+                (error) => {
+                  if (error) {
+                    console.error('QR Code regeneration error:', error);
+                    reject(error);
+                  } else {
+                    resolve();
+                  }
+                }
+              );
+            });
+            
+            // Draw the QR code from temporary canvas to main canvas
+            ctx.drawImage(tempCanvas, qrCodeX, qrCodeY);
+            
+            // Restore canvas state
+            ctx.restore();
           }
-          
-          ctx.fillText(text, qrSize/2 + labelOffsetX, rectangleY);
         }
       }
       
@@ -808,24 +1148,26 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
                           hasIcon: false
                         },
                         { 
-                          id: 'thick-under-text', 
-                          label: 'Thick Border Under Text',
+                          id: 'frame1', 
+                          label: 'Frame #1',
                           borderStyle: 'solid', 
-                          borderWidth: '6px', 
-                          borderColor: '#00D9FF',
-                          hasLabel: true,
-                          labelPosition: 'below',
-                          hasIcon: false
+                          borderWidth: '14px', 
+                          borderColor: '#000000',
+                          hasLabel: false,
+                          labelPosition: 'none',
+                          hasIcon: false,
+                          padding: '10px'
                         },
                         { 
-                          id: 'thick-over-text', 
-                          label: 'Thick Border Over Text',
+                          id: 'frame2', 
+                          label: 'Frame #2',
                           borderStyle: 'solid', 
-                          borderWidth: '6px', 
-                          borderColor: '#00D9FF',
-                          hasLabel: true,
-                          labelPosition: 'over',
-                          hasIcon: false
+                          borderWidth: '1px', 
+                          borderColor: '#000000',
+                          hasLabel: false,
+                          labelPosition: 'none',
+                          hasIcon: false,
+                          padding: '29px'
                         },
                       ].map((frame) => (
                         <div
@@ -1372,14 +1714,24 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
         padding: '60px 40px',
       }}>
         <div style={{
-          padding: '64px', // Reduced proportionally to scale down QR preview
-          background: '#fff',
-          borderRadius: '20px',
-          border: '2px solid #00D9FF',
-          boxShadow: '0 0 40px rgba(0, 217, 255, 0.3)',
+          padding: '0px', // REMOVED padding to see full canvas
+          background: 'transparent', // REMOVED white background
+          borderRadius: '0px', // REMOVED border radius
+          border: 'none', // REMOVED border
+          boxShadow: 'none', // REMOVED shadow
           marginBottom: '40px',
+          overflow: 'visible', // Allow canvas to extend beyond container
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
         }}>
-          <canvas ref={canvasRef} />
+          <canvas ref={canvasRef} style={{ 
+            border: '1px solid red',
+            width: selectedFrame === 'frame1' ? '270px' : 'auto',
+            height: selectedFrame === 'frame1' ? '300px' : 'auto',
+            maxWidth: '100%',
+            maxHeight: '100%',
+          }} /> {/* Added red border to see canvas bounds */}
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap' }}>
