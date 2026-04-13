@@ -469,8 +469,8 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
       // Generate QR code with scan URL (or original data if not authenticated/saved)
       const canvas = document.createElement('canvas');
       
-      // Use same dimensions as preview: 270x300px for Frame #1, otherwise original dimensions
-      if (selectedFrame === 'frame1') {
+      // Use same dimensions as preview: 270x300px for Frame #1 and Frame #2, otherwise original dimensions
+      if (selectedFrame === 'frame1' || selectedFrame === 'frame2') {
         canvas.width = 270;
         canvas.height = 300;
       } else {
@@ -478,8 +478,8 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
         canvas.height = qrSize * 2 + 250; // Original dimensions for other frames
       }
       
-      // Generate QR code with scan URL (skip for Frame #1 - we'll draw it ourselves)
-      if (selectedFrame !== 'frame1') {
+      // Generate QR code with scan URL (skip for Frame #1 and Frame #2 - we'll draw them ourselves)
+      if (selectedFrame !== 'frame1' && selectedFrame !== 'frame2') {
         await new Promise((resolve, reject) => {
           QRCode.toCanvas(
             canvas,
