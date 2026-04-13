@@ -246,16 +246,16 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
             const outerHeight = 300;
             const borderRadius = 14;
             
-            // Draw black rounded rectangle (outer container)
-            ctx.fillStyle = '#000000';
+            // Draw black rounded rectangle (outer container) - uses frameColor variable
+            ctx.fillStyle = frameColor;
             ctx.beginPath();
             ctx.roundRect(0, 0, outerWidth, outerHeight, borderRadius);
             ctx.fill();
             
-            // Draw frame phrase label - moved 5px lower
-            const labelY = 15 + 240 + 8 + 5; // qrAreaY + qrAreaSize + gap + 5px lower
+            // Draw frame phrase label - changed to 18px height and lowered by 20px total
+            const labelY = 15 + 240 + 8 + 5 + 5 + 10; // qrAreaY + qrAreaSize + gap + 5px lower + 5px more + 10px more = 283px from top
             ctx.fillStyle = '#ffffff';
-            ctx.font = '700 11px Arial, sans-serif';
+            ctx.font = `700 18px ${frameFont}, sans-serif`; // Changed from 11px to 18px
             ctx.textAlign = 'center';
             ctx.textBaseline = 'alphabetic';
             ctx.letterSpacing = '2px';
@@ -424,33 +424,42 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
       
       // Generate QR code with scan URL (or original data if not authenticated/saved)
       const canvas = document.createElement('canvas');
-      canvas.width = qrSize;
-      canvas.height = qrSize * 2 + 250; // Same dimensions as preview
       
-      // Generate QR code with scan URL
-      await new Promise((resolve, reject) => {
-        QRCode.toCanvas(
-          canvas,
-          scanUrl,
-          {
-            width: qrSize - 60, // Account for white area padding
-            margin: includeMargin ? 2 : 0,
-            color: {
-              dark: qrColor,
-              light: bgColor,
+      // Use same dimensions as preview: 270x300px for Frame #1, otherwise original dimensions
+      if (selectedFrame === 'frame1') {
+        canvas.width = 270;
+        canvas.height = 300;
+      } else {
+        canvas.width = qrSize;
+        canvas.height = qrSize * 2 + 250; // Original dimensions for other frames
+      }
+      
+      // Generate QR code with scan URL (skip for Frame #1 - we'll draw it ourselves)
+      if (selectedFrame !== 'frame1') {
+        await new Promise((resolve, reject) => {
+          QRCode.toCanvas(
+            canvas,
+            scanUrl,
+            {
+              width: qrSize - 60, // Account for white area padding
+              margin: includeMargin ? 2 : 0,
+              color: {
+                dark: qrColor,
+                light: bgColor,
+              },
+              errorCorrectionLevel: errorCorrectionLevel,
             },
-            errorCorrectionLevel: errorCorrectionLevel,
-          },
-          (error) => {
-            if (error) {
-              console.error('QR Code generation error:', error);
-              reject(error);
-            } else {
-              resolve();
+            (error) => {
+              if (error) {
+                console.error('QR Code generation error:', error);
+                reject(error);
+              } else {
+                resolve();
+              }
             }
-          }
-        );
-      });
+          );
+        });
+      }
       
       // Apply same customizations as preview
       const ctx = canvas.getContext('2d');
@@ -508,49 +517,32 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
             ctx.fillText(text, qrSize/2 + labelOffsetX, rectangleY);
           } else if (selectedFrame === 'frame1') {
             // For Frame #1: Black rounded rectangle with "SCAN ME" label
-            // According to CSS specifications:
-            // - Outer container: 300px wide, black, rounded corners (14px)
-            // - QR area: 272px square (300 - 14*2 padding), white, subtle rounding (4px)
-            // - Label: "SCAN ME" white text below QR code
+            // Canvas is 270x300px (same as preview)
+            // - Outer container: 270px wide, uses frameColor, rounded corners (14px)
+            // - QR code will be drawn at (15,15) with size 240x240px
+            // - Label: uses framePhrase, frameFont, white text below QR code
             
-            const outerWidth = 300;
-            const outerHeight = 332; // Total height including label
+            const outerWidth = 270;
+            const outerHeight = 300;
             const borderRadius = 14;
-            const padding = 14;
-            const gap = 8;
-            const qrAreaSize = 272; // outerWidth - padding*2
-            const qrAreaBorderRadius = 4;
             
-            // Calculate positions - start at (0,0) for version 2
-            const frameX = 0;
-            const frameY = 0;
-            
-            // Draw black rounded rectangle (outer container)
-            ctx.fillStyle = '#000000';
+            // Draw black rounded rectangle (outer container) - uses frameColor variable
+            ctx.fillStyle = frameColor;
             ctx.beginPath();
-            ctx.roundRect(frameX, frameY, outerWidth, outerHeight, borderRadius);
+            ctx.roundRect(0, 0, outerWidth, outerHeight, borderRadius);
             ctx.fill();
             
-            // Draw QR code area (white square with subtle rounding)
-            const qrAreaX = frameX + padding;
-            const qrAreaY = frameY + padding;
-            
+            // Draw frame phrase label - same as preview (283px from top)
+            const labelY = 15 + 240 + 8 + 5 + 5 + 10; // qrAreaY + qrAreaSize + gap + 5px lower + 5px more + 10px more = 283px from top
             ctx.fillStyle = '#ffffff';
-            ctx.beginPath();
-            ctx.roundRect(qrAreaX, qrAreaY, qrAreaSize, qrAreaSize, qrAreaBorderRadius);
-            ctx.fill();
-            
-            // Draw "SCAN ME" label
-            const labelY = qrAreaY + qrAreaSize + gap;
-            ctx.fillStyle = '#ffffff';
-            ctx.font = '700 11px Arial, sans-serif';
+            ctx.font = `700 18px ${frameFont}, sans-serif`; // Use frameFont variable
             ctx.textAlign = 'center';
             ctx.textBaseline = 'alphabetic';
             ctx.letterSpacing = '2px';
             
             // Draw uppercase text with letter spacing
-            const labelText = 'SCAN ME';
-            const labelX = frameX + outerWidth / 2;
+            const labelText = framePhrase.toUpperCase(); // Use frame phrase, convert to uppercase
+            const labelX = outerWidth / 2;
             
             // Manually draw text with letter spacing
             let currentX = labelX - (ctx.measureText(labelText).width / 2);
@@ -559,29 +551,22 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
               currentX += ctx.measureText(labelText[i]).width + 2; // 2px letter spacing
             }
             
-            // Clear the area where the QR code was originally drawn (with white padding)
-            // The QR code is drawn at (30, 30) with size (qrSize - 60)
-            ctx.clearRect(30, 30, qrSize - 60, qrSize - 60);
+            // For Frame #1, we skip the initial QR code generation, so no need to clear
+            // The frame is already drawn, now we just need to draw the QR code
             
-            // Now we need to redraw the QR code inside the white area
+            // Now we need to redraw the QR code at (15,15) with size 240x240px
             // First, save the current canvas state
             ctx.save();
             
-            // Clip to the white QR area
+            // Clip to the area where QR code should be (15,15, 240x240)
             ctx.beginPath();
-            ctx.roundRect(qrAreaX, qrAreaY, qrAreaSize, qrAreaSize, qrAreaBorderRadius);
+            ctx.rect(15, 15, 240, 240);
             ctx.clip();
-            
-            // Generate a new QR code at the correct size and position
-            // The QR code should be centered within the white area
-            const qrCodeSize = Math.min(qrAreaSize * 0.8, qrSize - 60); // 80% of white area or original size
-            const qrCodeX = qrAreaX + (qrAreaSize - qrCodeSize) / 2;
-            const qrCodeY = qrAreaY + (qrAreaSize - qrCodeSize) / 2;
             
             // Create a temporary canvas for the QR code
             const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = qrCodeSize;
-            tempCanvas.height = qrCodeSize;
+            tempCanvas.width = 240;
+            tempCanvas.height = 240;
             
             // Generate QR code on temporary canvas
             await new Promise((resolve, reject) => {
@@ -589,7 +574,7 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
                 tempCanvas,
                 scanUrl,
                 {
-                  width: qrCodeSize,
+                  width: 240,
                   margin: includeMargin ? 2 : 0,
                   color: {
                     dark: qrColor,
@@ -608,8 +593,8 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
               );
             });
             
-            // Draw the QR code from temporary canvas to main canvas
-            ctx.drawImage(tempCanvas, qrCodeX, qrCodeY);
+            // Draw the QR code from temporary canvas to main canvas at (15,15)
+            ctx.drawImage(tempCanvas, 15, 15);
             
             // Restore canvas state
             ctx.restore();
