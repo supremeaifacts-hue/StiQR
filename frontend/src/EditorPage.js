@@ -197,9 +197,19 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
         ctx.clearRect(0, 0, canvasWidth, canvasHeight);
         
         // Draw white background for QR code area
-        const qrAreaSize = 240; // QR code will be 240x240px
-        const qrAreaX = 15; // Start at (15,15) as requested
-        const qrAreaY = 15;
+        // For Frame #2: draw at (20,10) with size 230x230px
+        // For other frames: draw at (15,15) with size 240x240px
+        let qrAreaSize, qrAreaX, qrAreaY;
+        
+        if (selectedFrame === 'frame2') {
+          qrAreaSize = 230; // QR code will be 230x230px for Frame #2
+          qrAreaX = 20; // Start at (20,10) for Frame #2
+          qrAreaY = 10;
+        } else {
+          qrAreaSize = 240; // QR code will be 240x240px for other frames
+          qrAreaX = 15; // Start at (15,15) for other frames
+          qrAreaY = 15;
+        }
         
         ctx.fillStyle = bgColor;
         ctx.fillRect(qrAreaX, qrAreaY, qrAreaSize, qrAreaSize);
@@ -272,36 +282,70 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
             }
             
           } else if (selectedFrame === 'frame2') {
-            // Frame #2: 1px black frame around QR code area
-            // Canvas is 270x300px
-            // 1px black frame: 265px x 265px (centered in canvas)
-            // QR code: 200x200px (centered inside border)
+            // Frame #2: 10px thick frame from (10,0) to (250,240) - 240x240px
+            // Inside area: 220x220px (240 - 10*2)
+            // QR code area: from (20,10) to (240,230) - 220x220px
+            // Rectangle on bottom: from (10,250) to (250,300) - 240x50px
+            // Editable text inside rectangle using frame phrase, font, color
             
-            const frameWidth = 1;
-            const borderSize = 265; // 265px x 265px border (centered in 270x300px)
-            const qrCodeSize = 200; // Fixed 200x200px QR code
+            const frameWidth = 10; // 10px thick frame
+            const frameSize = 240; // 240x240px (250-10=240, 240-0=240)
+            const frameX = 10; // Start from (10,0)
+            const frameY = 0;
             
-            // Calculate position to center the 265px border in the 270px canvas
-            const borderX = (canvasWidth - borderSize) / 2;
-            const borderY = (canvasHeight - borderSize) / 2;
-            
-            // Draw 1px black frame (265px x 265px)
-            ctx.strokeStyle = '#000000';
+            // Draw 10px thick frame (240x240px) from (10,0) to (250,240) with rounded corners (6px radius - half of 12px)
+            ctx.strokeStyle = frameColor; // Use frameColor variable
             ctx.lineWidth = frameWidth;
-            ctx.strokeRect(borderX + 0.5, borderY + 0.5, borderSize, borderSize);
+            ctx.beginPath();
+            ctx.roundRect(frameX + frameWidth/2, frameY + frameWidth/2, frameSize, frameSize, 6);
+            ctx.stroke();
             
-            // Add text labels for clarity
-            ctx.fillStyle = '#000000';
-            ctx.font = '12px Arial';
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'top';
-            ctx.fillText('Frame #2: 265x265px border, 200x200px QR code', 10, 280);
+            // Draw text rectangle: (10,260) to (260,300) - 250x40px with rounded corners (16px radius - double of 8px)
+            const textRectX = 10;
+            const textRectY = 260;
+            const textRectWidth = 250; // 260-10=250
+            const textRectHeight = 40; // 300-260=40
+            
+            // Draw rectangle background with rounded corners
+            ctx.fillStyle = frameColor; // Use frameColor variable
+            ctx.beginPath();
+            ctx.roundRect(textRectX, textRectY, textRectWidth, textRectHeight, 16);
+            ctx.fill();
+            
+            // Draw editable text inside rectangle
+            ctx.fillStyle = '#ffffff'; // White text
+            ctx.font = `700 18px ${frameFont}, sans-serif`; // Use frameFont variable
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            const labelText = framePhrase.toUpperCase(); // Use frame phrase, convert to uppercase
+            const labelX = textRectX + textRectWidth / 2;
+            const labelY = textRectY + textRectHeight / 2;
+            
+            // Draw text with letter spacing
+            ctx.letterSpacing = '2px';
+            let currentX = labelX - (ctx.measureText(labelText).width / 2);
+            for (let i = 0; i < labelText.length; i++) {
+              ctx.fillText(labelText[i], currentX, labelY);
+              currentX += ctx.measureText(labelText[i]).width + 2; // 2px letter spacing
+            }
           }
         }
         
-        // Draw the QR code from temporary canvas to main canvas at (15,15)
-        // This is drawn AFTER frames for all frame options
-        ctx.drawImage(tempCanvas, qrAreaX, qrAreaY);
+        // Draw the QR code from temporary canvas to main canvas
+        // For Frame #2: draw at (20,10) with size 230x230px
+        // For other frames: draw at (15,15) with size 240x240px
+        if (selectedFrame === 'frame2') {
+          // For Frame #2, draw at (20,10) with size 230x230px
+          const qrX = 20;
+          const qrY = 10;
+          
+          // Draw the QR code directly (no scaling needed since it's already 230x230)
+          ctx.drawImage(tempCanvas, qrX, qrY);
+        } else {
+          // For other frames, draw at (15,15) with size 240x240px
+          ctx.drawImage(tempCanvas, qrAreaX, qrAreaY);
+        }
         
         // Apply sticker if selected
         if (selectedSticker) {
@@ -599,52 +643,72 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
             // Restore canvas state
             ctx.restore();
           } else if (selectedFrame === 'frame2') {
-            // For Frame #2: 1px black frame around QR code area
-            // Canvas: 300x300px
-            // 1px black frame: 295px x 295px (centered in canvas)
-            // QR code: 200x200px (centered inside border)
+            // For Frame #2: 10px thick frame from (10,0) to (250,240) - 240x240px
+            // Inside area: 220x220px (240 - 10*2)
+            // QR code area: from (20,10) to (240,230) - 220x220px
+            // Rectangle on bottom: from (10,250) to (250,300) - 240x50px
+            // Editable text inside rectangle using frame phrase, font, color
             
-            const frameWidth = 1;
-            const borderSize = 295; // 295px x 295px border as requested
-            const qrCodeSize = 200; // Fixed 200x200px QR code
+            const frameWidth = 10; // 10px thick frame
+            const frameSize = 240; // 240x240px (250-10=240, 240-0=240)
+            const frameX = 10; // Start from (10,0)
+            const frameY = 0;
             
-            // Calculate position to center the 295px border in the 300px canvas
-            const borderX = (qrSize - borderSize) / 2;
-            const borderY = (qrSize - borderSize) / 2;
-            
-            // Draw 1px black frame (295px x 295px)
-            // Draw at borderX + 0.5, borderY + 0.5 to avoid anti-aliasing issues
-            ctx.strokeStyle = '#000000';
+            // Draw 10px thick frame (240x240px) from (10,0) to (250,240) with rounded corners (6px radius - half of 12px)
+            ctx.strokeStyle = frameColor; // Use frameColor variable
             ctx.lineWidth = frameWidth;
-            ctx.strokeRect(borderX + 0.5, borderY + 0.5, borderSize, borderSize);
+            ctx.beginPath();
+            ctx.roundRect(frameX + frameWidth/2, frameY + frameWidth/2, frameSize, frameSize, 6);
+            ctx.stroke();
+            
+            // Draw text rectangle: (10,260) to (260,300) - 250x40px with rounded corners (16px radius - double of 8px)
+            const textRectX = 10;
+            const textRectY = 260;
+            const textRectWidth = 250; // 260-10=250
+            const textRectHeight = 40; // 300-260=40
+            
+            // Draw rectangle background with rounded corners
+            ctx.fillStyle = frameColor; // Use frameColor variable
+            ctx.beginPath();
+            ctx.roundRect(textRectX, textRectY, textRectWidth, textRectHeight, 16);
+            ctx.fill();
+            
+            // Draw editable text inside rectangle
+            ctx.fillStyle = '#ffffff'; // White text
+            ctx.font = `700 18px ${frameFont}, sans-serif`; // Use frameFont variable
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            const labelText = framePhrase.toUpperCase(); // Use frame phrase, convert to uppercase
+            const labelX = textRectX + textRectWidth / 2;
+            const labelY = textRectY + textRectHeight / 2;
+            
+            // Draw text with letter spacing
+            ctx.letterSpacing = '2px';
+            let currentX = labelX - (ctx.measureText(labelText).width / 2);
+            for (let i = 0; i < labelText.length; i++) {
+              ctx.fillText(labelText[i], currentX, labelY);
+              currentX += ctx.measureText(labelText[i]).width + 2; // 2px letter spacing
+            }
             
             // Clear the area where the QR code was originally drawn (with white padding)
-            // The QR code is drawn at (30, 30) with size (qrSize - 60)
-            ctx.clearRect(30, 30, qrSize - 60, qrSize - 60);
+            // For Frame #2, the QR code should be at (20,10) with size 230x230px
+            // So we need to clear that area
+            ctx.clearRect(20, 10, 230, 230);
             
-            // Now we need to redraw the QR code inside the framed area
+            // Now we need to redraw the QR code at (20,10) with size 230x230px
             // First, save the current canvas state
             ctx.save();
             
-            // Clip to the area inside the border (293px x 293px after accounting for 1px border on each side)
-            const innerBorderX = borderX + frameWidth;
-            const innerBorderY = borderY + frameWidth;
-            const innerBorderSize = borderSize - (frameWidth * 2);
+            // Clip to the area where QR code should be (20,10, 230x230)
             ctx.beginPath();
-            ctx.rect(innerBorderX, innerBorderY, innerBorderSize, innerBorderSize);
+            ctx.rect(20, 10, 230, 230);
             ctx.clip();
-            
-            // Calculate position to center the 200x200px QR code inside the border
-            // The border inner area is 293px x 293px (295 - 2*1)
-            // QR code is 200px x 200px, so padding = (293 - 200) / 2 = 46.5px
-            const qrPadding = (innerBorderSize - qrCodeSize) / 2;
-            const qrCodeX = innerBorderX + qrPadding;
-            const qrCodeY = innerBorderY + qrPadding;
             
             // Create a temporary canvas for the QR code
             const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = qrCodeSize;
-            tempCanvas.height = qrCodeSize;
+            tempCanvas.width = 230;
+            tempCanvas.height = 230;
             
             // Generate QR code on temporary canvas
             await new Promise((resolve, reject) => {
@@ -652,7 +716,7 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
                 tempCanvas,
                 scanUrl,
                 {
-                  width: qrCodeSize,
+                  width: 230,
                   margin: includeMargin ? 2 : 0,
                   color: {
                     dark: qrColor,
@@ -671,8 +735,8 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
               );
             });
             
-            // Draw the QR code from temporary canvas to main canvas
-            ctx.drawImage(tempCanvas, qrCodeX, qrCodeY);
+            // Draw the QR code from temporary canvas to main canvas at (20,10)
+            ctx.drawImage(tempCanvas, 20, 10);
             
             // Restore canvas state
             ctx.restore();
