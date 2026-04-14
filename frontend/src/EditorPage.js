@@ -19,6 +19,30 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
   const [userLogos, setUserLogos] = useState([]);
   const [loadingLogos, setLoadingLogos] = useState(false);
   
+  // Email-specific state
+  const [emailData, setEmailData] = useState({
+    email: '',
+    subject: '',
+    message: ''
+  });
+  
+  // SMS/WhatsApp-specific state
+  const [smsData, setSmsData] = useState({
+    countryCode: '+1',
+    phoneNumber: '',
+    message: ''
+  });
+  
+  // WiFi-specific state
+  const [wifiData, setWifiData] = useState({
+    ssid: '',
+    encryption: 'WPA/WPA2',
+    password: ''
+  });
+  
+  // PDF file state
+  const [pdfFile, setPdfFile] = useState(null);
+  
   const { isAuthenticated, saveLogo, saveQrCode, getUserAssets, canCreateDynamicQrCodes, getTrialDaysLeft, isProUser } = useAuth();
   
   // Frame customization state
@@ -350,9 +374,9 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
         // Apply sticker if selected
         if (selectedSticker) {
           const stickerSize = 48; // 20% of 240px QR area
-          const offset = 25;
-          const x = qrAreaX + (qrAreaSize - stickerSize) / 2 - offset;
-          const y = qrAreaY + (qrAreaSize - stickerSize) / 2 - offset;
+          // Remove offset to center the sticker
+          const x = qrAreaX + (qrAreaSize - stickerSize) / 2;
+          const y = qrAreaY + (qrAreaSize - stickerSize) / 2;
           const padding = 6;
           ctx.fillStyle = 'white';
           const radius = 8;
@@ -387,9 +411,9 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
         // Apply logo if selected
         if (selectedLogo) {
           const logoSize = 50;
-          const offset = 25;
-          const x = qrAreaX + (qrAreaSize - logoSize) / 2 - offset;
-          const y = qrAreaY + (qrAreaSize - logoSize) / 2 - offset;
+          // Remove offset to center the logo
+          const x = qrAreaX + (qrAreaSize - logoSize) / 2;
+          const y = qrAreaY + (qrAreaSize - logoSize) / 2;
           
           const img = new Image();
           img.onload = () => {
@@ -902,7 +926,7 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
           padding: '18px',
           marginBottom: '24px',
         }}>
-          <p style={{ margin: 0, fontSize: '13px', color: '#ccc', fontWeight: '600', textAlign: 'left' }}>
+          <p style={{ margin: 0, fontSize: '14px', color: '#fff', fontWeight: '700', textAlign: 'left' }}>
             1. Choose the Kind of QR Code:
           </p>
           <div style={{ display: 'flex', gap: '12px', marginTop: '14px' }}>
@@ -985,25 +1009,269 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
 
         <div>
           <div style={{ marginBottom: '30px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#888', marginBottom: '10px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#fff', fontWeight: '700', marginBottom: '10px' }}>
               <span>🔗</span> 2. Complete the Content:
             </label>
-              <input
-                type="text"
-                value={qrData}
-                onChange={(e) => setQrData(e.target.value)}
-                placeholder="Enter URL or data..."
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  background: 'rgba(0, 217, 255, 0.05)',
-                  border: '1px solid rgba(0, 217, 255, 0.2)',
-                  borderRadius: '8px',
-                  color: '#fff',
-                  fontSize: '14px',
-                  boxSizing: 'border-box',
-                }}
-              />
+              {selectedType === 'email' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <input
+                    type="email"
+                    value={emailData.email}
+                    onChange={(e) => setEmailData({...emailData, email: e.target.value})}
+                    placeholder="Your Email Address"
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      background: 'rgba(0, 217, 255, 0.05)',
+                      border: '1px solid rgba(0, 217, 255, 0.2)',
+                      borderRadius: '8px',
+                      color: '#fff',
+                      fontSize: '14px',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  <input
+                    type="text"
+                    value={emailData.subject}
+                    onChange={(e) => setEmailData({...emailData, subject: e.target.value})}
+                    placeholder="Subject of Email"
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      background: 'rgba(0, 217, 255, 0.05)',
+                      border: '1px solid rgba(0, 217, 255, 0.2)',
+                      borderRadius: '8px',
+                      color: '#fff',
+                      fontSize: '14px',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  <textarea
+                    value={emailData.message}
+                    onChange={(e) => setEmailData({...emailData, message: e.target.value})}
+                    placeholder="Message"
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      background: 'rgba(0, 217, 255, 0.05)',
+                      border: '1px solid rgba(0, 217, 255, 0.2)',
+                      borderRadius: '8px',
+                      color: '#fff',
+                      fontSize: '14px',
+                      boxSizing: 'border-box',
+                      minHeight: '100px',
+                      resize: 'vertical',
+                    }}
+                  />
+                </div>
+              ) : selectedType === 'sms' || selectedType === 'whatsapp' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <select
+                      value={smsData.countryCode}
+                      onChange={(e) => setSmsData({...smsData, countryCode: e.target.value})}
+                      style={{
+                        flex: '0 0 120px',
+                        padding: '12px',
+                        background: 'rgba(0, 217, 255, 0.05)',
+                        border: '1px solid rgba(0, 217, 255, 0.2)',
+                        borderRadius: '8px',
+                        color: '#fff',
+                        fontSize: '14px',
+                        boxSizing: 'border-box',
+                      }}
+                    >
+                      <option value="+1">🇺🇸 +1 (USA)</option>
+                      <option value="+44">🇬🇧 +44 (UK)</option>
+                      <option value="+91">🇮🇳 +91 (India)</option>
+                      <option value="+86">🇨🇳 +86 (China)</option>
+                      <option value="+81">🇯🇵 +81 (Japan)</option>
+                      <option value="+49">🇩🇪 +49 (Germany)</option>
+                      <option value="+33">🇫🇷 +33 (France)</option>
+                      <option value="+61">🇦🇺 +61 (Australia)</option>
+                      <option value="+55">🇧🇷 +55 (Brazil)</option>
+                      <option value="+7">🇷🇺 +7 (Russia)</option>
+                    </select>
+                    <input
+                      type="tel"
+                      value={smsData.phoneNumber}
+                      onChange={(e) => setSmsData({...smsData, phoneNumber: e.target.value})}
+                      placeholder="Phone Number"
+                      style={{
+                        flex: 1,
+                        padding: '12px',
+                        background: 'rgba(0, 217, 255, 0.05)',
+                        border: '1px solid rgba(0, 217, 255, 0.2)',
+                        borderRadius: '8px',
+                        color: '#fff',
+                        fontSize: '14px',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                  <textarea
+                    value={smsData.message}
+                    onChange={(e) => setSmsData({...smsData, message: e.target.value})}
+                    placeholder="Message"
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      background: 'rgba(0, 217, 255, 0.05)',
+                      border: '1px solid rgba(0, 217, 255, 0.2)',
+                      borderRadius: '8px',
+                      color: '#fff',
+                      fontSize: '14px',
+                      boxSizing: 'border-box',
+                      minHeight: '100px',
+                      resize: 'vertical',
+                    }}
+                  />
+                </div>
+              ) : selectedType === 'wifi' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <input
+                    type="text"
+                    value={wifiData.ssid}
+                    onChange={(e) => setWifiData({...wifiData, ssid: e.target.value})}
+                    placeholder="SSID (Network Name)"
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      background: 'rgba(0, 217, 255, 0.05)',
+                      border: '1px solid rgba(0, 217, 255, 0.2)',
+                      borderRadius: '8px',
+                      color: '#fff',
+                      fontSize: '14px',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                  <select
+                    value={wifiData.encryption}
+                    onChange={(e) => setWifiData({...wifiData, encryption: e.target.value})}
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      background: 'rgba(0, 217, 255, 0.05)',
+                      border: '1px solid rgba(0, 217, 255, 0.2)',
+                      borderRadius: '8px',
+                      color: '#fff',
+                      fontSize: '14px',
+                      boxSizing: 'border-box',
+                    }}
+                  >
+                    <option value="WEP">WEP</option>
+                    <option value="WPA/WPA2">WPA/WPA2</option>
+                  </select>
+                  <input
+                    type="password"
+                    value={wifiData.password}
+                    onChange={(e) => setWifiData({...wifiData, password: e.target.value})}
+                    placeholder="WI-FI Password"
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      background: 'rgba(0, 217, 255, 0.05)',
+                      border: '1px solid rgba(0, 217, 255, 0.2)',
+                      borderRadius: '8px',
+                      color: '#fff',
+                      fontSize: '14px',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+              ) : selectedType === 'pdf' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <input
+                    type="file"
+                    id="pdf-upload"
+                    accept=".pdf"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        setPdfFile(file);
+                      }
+                    }}
+                    style={{ display: 'none' }}
+                  />
+                  <label
+                    htmlFor="pdf-upload"
+                    style={{
+                      padding: '14px',
+                      background: 'rgba(0, 217, 255, 0.1)',
+                      border: '2px dashed rgba(0, 217, 255, 0.3)',
+                      borderRadius: '8px',
+                      color: '#00D9FF',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      fontWeight: '600',
+                      textAlign: 'center',
+                      display: 'block',
+                    }}
+                  >
+                    📁 Upload PDF File
+                  </label>
+                  {pdfFile && (
+                    <div style={{
+                      padding: '10px',
+                      background: 'rgba(0, 217, 255, 0.1)',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      color: '#00D9FF',
+                      textAlign: 'center',
+                    }}>
+                      Selected: {pdfFile.name}
+                    </div>
+                  )}
+                </div>
+              ) : selectedType === 'social' || selectedType === 'event' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <button
+                    style={{
+                      padding: '14px',
+                      background: 'linear-gradient(135deg, #FF00FF 0%, #00D9FF 100%)',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: '#000',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                    }}
+                  >
+                    Create Now
+                  </button>
+                  <div style={{
+                    padding: '10px',
+                    background: 'rgba(0, 217, 255, 0.1)',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    color: '#00D9FF',
+                    textAlign: 'center',
+                  }}>
+                    This feature will be implemented soon
+                  </div>
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  value={qrData}
+                  onChange={(e) => setQrData(e.target.value)}
+                  placeholder={
+                    selectedType === 'url' ? "Enter the URL" : 
+                    selectedType === 'text' ? "Enter the message" : 
+                    "Enter URL or data..."
+                  }
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    background: 'rgba(0, 217, 255, 0.05)',
+                    border: '1px solid rgba(0, 217, 255, 0.2)',
+                    borderRadius: '8px',
+                    color: '#fff',
+                    fontSize: '14px',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              )}
             </div>
 
             <div style={{ marginBottom: '30px' }}>
@@ -1656,24 +1924,24 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
         padding: '60px 40px',
       }}>
         <div style={{
-          padding: '0px', // REMOVED padding to see full canvas
-          background: 'transparent', // REMOVED white background
-          borderRadius: '0px', // REMOVED border radius
-          border: 'none', // REMOVED border
-          boxShadow: 'none', // REMOVED shadow
+          padding: '50px',
+          background: '#ffffff',
+          borderRadius: '20px',
+          border: 'none',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.1)',
           marginBottom: '40px',
-          overflow: 'visible', // Allow canvas to extend beyond container
+          overflow: 'visible',
           display: 'flex',
           justifyContent: 'center',
           alignItems: 'center',
         }}>
           <canvas ref={canvasRef} style={{ 
-            border: '1px solid red',
+            border: '1px solid white', // Frame preview area
             width: selectedFrame === 'frame1' ? '270px' : 'auto',
             height: selectedFrame === 'frame1' ? '300px' : 'auto',
             maxWidth: '100%',
             maxHeight: '100%',
-          }} /> {/* Added red border to see canvas bounds */}
+          }} /> {/* Frame preview area */}
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', flexWrap: 'wrap' }}>
