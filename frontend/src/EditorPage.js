@@ -19,6 +19,22 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
   const [userLogos, setUserLogos] = useState([]);
   const [loadingLogos, setLoadingLogos] = useState(false);
   
+  // Generate unique ID for QR codes (same algorithm as backend)
+  const generateId = () => {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+  };
+  
+  // State for tracking URL
+  const [qrCodeId, setQrCodeId] = useState(generateId());
+  
+  // Generate tracking URL
+  const getTrackingUrl = () => {
+    // Use IP address for network access (phone scanning)
+    // In production, this should be configured via environment variable
+    const backendHost = window.location.hostname === 'localhost' ? '192.168.1.104' : window.location.hostname;
+    return `http://${backendHost}:3000/track/${qrCodeId}`;
+  };
+  
   // Email-specific state
   const [emailData, setEmailData] = useState({
     email: '',
@@ -246,7 +262,7 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
         await new Promise((resolve, reject) => {
           QRCode.toCanvas(
             tempCanvas,
-            qrData,
+            getTrackingUrl(), // Use tracking URL instead of destination URL
             {
               width: qrAreaSize,
               margin: includeMargin ? 2 : 0,
@@ -466,8 +482,8 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
 
   const handleDownload = async () => {
     if (canvasRef.current && qrData) {
-      // First save QR code to get scan URL (if authenticated)
-      let scanUrl = qrData; // Default to original data
+      // Use tracking URL for QR code generation
+      const trackingUrl = getTrackingUrl();
       let savedQrCode = null;
       
       if (isAuthenticated) {
@@ -475,22 +491,19 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
           // Generate current QR code image
           const imageData = canvasRef.current.toDataURL('image/png');
           
-          // Save QR code to backend
-          savedQrCode = await saveQrCode(qrData, imageData, `QR Code ${new Date().toLocaleDateString()}`);
+          // Save QR code to backend with tracking URL
+          savedQrCode = await saveQrCode(qrData, imageData, `QR Code ${new Date().toLocaleDateString()}`, qrCodeId);
           console.log('QR code saved to user account:', savedQrCode);
           
-          // Use scan URL from backend response if available
-          if (savedQrCode && savedQrCode.qrCode && savedQrCode.qrCode.scanUrl) {
-            scanUrl = savedQrCode.qrCode.scanUrl;
-            console.log('Using scan URL:', scanUrl);
-          }
+          // Note: The backend should use the same qrCodeId we generated
+          // We need to update the saveQrCode function to send the qrCodeId
         } catch (error) {
           console.error('Failed to save QR code:', error);
-          // Continue with original data
+          // Continue with tracking URL anyway
         }
       }
       
-      // Generate QR code with scan URL (or original data if not authenticated/saved)
+      // Generate QR code with tracking URL
       const canvas = document.createElement('canvas');
       
       // Use same dimensions as preview: 270x300px for Frame #1 and Frame #2, otherwise original dimensions
@@ -502,12 +515,12 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
         canvas.height = qrSize * 2 + 250; // Original dimensions for other frames
       }
       
-      // Generate QR code with scan URL (skip for Frame #1 and Frame #2 - we'll draw them ourselves)
+      // Generate QR code with tracking URL (skip for Frame #1 and Frame #2 - we'll draw them ourselves)
       if (selectedFrame !== 'frame1' && selectedFrame !== 'frame2') {
         await new Promise((resolve, reject) => {
           QRCode.toCanvas(
             canvas,
-            scanUrl,
+            trackingUrl,
             {
               width: qrSize - 60, // Account for white area padding
               margin: includeMargin ? 2 : 0,
@@ -640,7 +653,7 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
             await new Promise((resolve, reject) => {
               QRCode.toCanvas(
                 tempCanvas,
-                scanUrl,
+                trackingUrl,
                 {
                   width: 240,
                   margin: includeMargin ? 2 : 0,
@@ -738,7 +751,7 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
             await new Promise((resolve, reject) => {
               QRCode.toCanvas(
                 tempCanvas,
-                scanUrl,
+                trackingUrl,
                 {
                   width: 230,
                   margin: includeMargin ? 2 : 0,
@@ -2002,6 +2015,7 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
                   qrData, 
                   imageData, 
                   framePhrase || `QR Code ${new Date().toLocaleDateString()}`,
+                  qrCodeId, // Pass the QR code ID generated by frontend
                   designCharacteristics
                 );
                 console.log('QR code saved to user account:', savedQrCode);

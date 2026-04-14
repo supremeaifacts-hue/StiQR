@@ -154,7 +154,7 @@ router.post('/assets/logos', isAuthenticated, async (req, res) => {
 // Save a QR code
 router.post('/assets/qrcodes', isAuthenticated, async (req, res) => {
   try {
-    const { data, imageData, name } = req.body;
+    const { data, imageData, name, qrCodeId } = req.body;
     
     if (!data || !imageData) {
       return res.status(400).json({ error: 'QR code data and image data are required' });
@@ -165,11 +165,17 @@ router.post('/assets/qrcodes', isAuthenticated, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    const qrId = generateId();
+    // Use provided ID or generate a new one
+    const qrId = qrCodeId || generateId();
+    
+    // Generate tracking URL
+    const trackingUrl = `${req.protocol}://${req.get('host')}/track/${qrId}`;
+    const scanUrl = trackingUrl; // For backward compatibility
+    
     const newQrCode = {
       id: qrId,
-      data,
-      imageData,
+      data, // Store the original destination URL
+      imageData, // QR code image is already encoded with the tracking URL from frontend
       name: name || 'Untitled QR Code',
       scans: 0,
       createdAt: new Date(),
@@ -183,16 +189,15 @@ router.post('/assets/qrcodes', isAuthenticated, async (req, res) => {
     
     await user.save();
 
-    // Generate scan URL
-    const scanUrl = `${req.protocol}://${req.get('host')}/api/assets/qrcodes/${qrId}/redirect`;
-
+    // Return both the tracking URL and the original data
     res.json({
       success: true,
       qrCode: {
         ...newQrCode,
-        scanUrl
-      },
-      message: 'QR code saved successfully'
+        trackingUrl,
+        scanUrl, // For backward compatibility
+        originalUrl: data
+      }
     });
   } catch (error) {
     console.error('Error saving QR code:', error);
@@ -318,6 +323,33 @@ router.post('/assets/qrcodes/:id/scan', async (req, res) => {
     });
   } catch (error) {
     console.error('Error recording scan:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Handle legacy QR code URLs with extra path segments
+// This catches patterns like /api/assets/qrcodes/:id/*
+// and redirects them to the proper tracking endpoint
+// Using a parameter that can match any path
+router.get('/assets/qrcodes/:id/:path', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Find user by QR code ID
+    const user = await User.findOne({ 'qrCodes.id': id });
+    if (!user) {
+      return res.status(404).json({ error: 'QR code not found' });
+    }
+
+    const qrCode = user.qrCodes.find(qr => qr.id === id);
+    if (!qrCode) {
+      return res.status(404).json({ error: 'QR code not found' });
+    }
+
+    // Redirect to the proper tracking endpoint
+    res.redirect(`/track/${id}`);
+  } catch (error) {
+    console.error('Error handling legacy QR code URL:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -555,7 +587,12 @@ router.get('/assets/qrcodes/:id/redirect', async (req, res) => {
     await user.save();
 
     // Redirect to the actual URL
-    res.redirect(qrCode.data);
+    // Ensure the URL has a protocol (http:// or https://)
+    let redirectUrl = qrCode.data;
+    if (!redirectUrl.startsWith('http://') && !redirectUrl.startsWith('https://')) {
+      redirectUrl = 'https://' + redirectUrl;
+    }
+    res.redirect(redirectUrl);
   } catch (error) {
     console.error('Error processing QR code redirect:', error);
     res.status(500).send('Server error');
@@ -657,6 +694,60 @@ router.get('/assets/qrcodes/:id/statistics', isAuthenticated, async (req, res) =
   }
 });
 
+// Simple tracking endpoint that redirects to the full tracking endpoint
+router.get('/track/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Find user by QR code ID
+    const user = await User.findOne({ 'qrCodes.id': id });
+    if (!user) {
+      return res.status(404).send('QR code not found');
+    }
+
+    const qrCode = user.qrCodes.find(qr => qr.id === id);
+    if (!qrCode) {
+      return res.status(404).send('QR code not found');
+    }
+
+    // Redirect to the full tracking endpoint which will record the scan and redirect to destination
+    res.redirect(`/api/assets/qrcodes/${id}/redirect`);
+  } catch (error) {
+    console.error('Error in tracking endpoint:', error);
+    res.status(500).send('Server error');
+  }
+});
+
+// Simple stats endpoint - returns just scan count
+router.get('/qrcodes/:id/stats', isAuthenticated, async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Find user by QR code ID
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const qrCode = user.qrCodes.find(qr => qr.id === id);
+    if (!qrCode) {
+      return res.status(404).json({ error: 'QR code not found' });
+    }
+
+    res.json({
+      success: true,
+      scanCount: qrCode.scans || 0
+    });
+  } catch (error) {
+    console.error('Error fetching QR code stats:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Note: Legacy QR code URLs like /api/assets/qrcodes/:id/destination
+// are not supported. QR codes should be accessed via /track/:id
+// which redirects to /api/assets/qrcodes/:id/redirect
+
 // Get user subscription status
 router.get('/user/subscription', isAuthenticated, async (req, res) => {
   try {
@@ -710,3 +801,4 @@ router.get('/user/subscription', isAuthenticated, async (req, res) => {
 });
 
 module.exports = router;
+

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test QR Code Fix</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        .info { color: blue; }
+    </style>
+</head>
+<body>
+    <h1>QR Code Connection Test</h1>
+    
+    <div class="test-section">
+        <h2>Problem Analysis</h2>
+        <p><strong>Issue:</strong> Phone can't connect to localhost:3000 when scanning QR code</p>
+        <p><strong>Root Cause 1:</strong> QR code contains <code>localhost:3000</code> which only works on your computer</p>
+        <p><strong>Root Cause 2:</strong> <code>/track/:id</code> route was mounted at <code>/api/track/:id</code> instead of root level</p>
+        <p><strong>Solution 1:</strong> Use computer's IP address (<code>192.168.1.104:3000</code>) in QR code</p>
+        <p><strong>Solution 2:</strong> Added root-level <code>/track/:id</code> route in backend</p>
+    </div>
+    
+    <div class="test-section">
+        <h2>Backend Server Test</h2>
+        <div id="backend-test">
+            <p>Testing backend accessibility...</p>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Test QR Codes</h2>
+        <p>Try scanning these test QR codes with your phone:</p>
+        
+        <div style="display: flex; gap: 20px; margin: 20px 0;">
+            <div>
+                <h3>Test 1: Direct IP Address</h3>
+                <p>URL: <code>http://192.168.1.104:3000/</code></p>
+                <div id="qrcode-ip"></div>
+                <p>This should work if backend is running and accessible</p>
+            </div>
+            
+            <div>
+                <h3>Test 2: Tracking Endpoint</h3>
+                <p>URL: <code>http://192.168.1.104:3000/track/test123</code></p>
+                <div id="qrcode-track"></div>
+                <p>This tests the actual tracking endpoint</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>Instructions for Testing</h2>
+        <ol>
+            <li>Make sure backend is running: <code>cd backend && npm start</code></li>
+            <li>Scan the QR codes above with your phone</li>
+            <li>Your phone should connect to <code>192.168.1.104:3000</code></li>
+            <li>If it works, update your QR codes to use IP address instead of localhost</li>
+        </ol>
+        
+        <h3>Frontend Fix Applied:</h3>
+        <p>Updated <code>getTrackingUrl()</code> in <code>EditorPage.js</code> to use:</p>
+        <pre><code>const backendHost = window.location.hostname === 'localhost' ? '192.168.1.104' : window.location.hostname;
+return `http://${backendHost}:3000/track/${qrCodeId}`;</code></pre>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script>
+        // Test backend accessibility
+        async function testBackend() {
+            const testDiv = document.getElementById('backend-test');
+            const urls = [
+                'http://localhost:3000/',
+                'http://192.168.1.104:3000/'
+            ];
+            
+            for (const url of urls) {
+                try {
+                    const response = await fetch(url);
+                    if (response.ok) {
+                        testDiv.innerHTML += `<p class="success">✓ ${url} - Accessible</p>`;
+                    } else {
+                        testDiv.innerHTML += `<p class="error">✗ ${url} - HTTP ${response.status}</p>`;
+                    }
+                } catch (error) {
+                    testDiv.innerHTML += `<p class="error">✗ ${url} - Error: ${error.message}</p>`;
+                }
+            }
+        }
+        
+        // Generate QR codes
+        function generateQRCode(elementId, text) {
+            QRCode.toCanvas(document.getElementById(elementId), text, {
+                width: 200,
+                height: 200,
+                margin: 1
+            }, function(error) {
+                if (error) {
+                    console.error(error);
+                    document.getElementById(elementId).innerHTML = `Error: ${error.message}`;
+                }
+            });
+        }
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            testBackend();
+            
+            // Create canvas elements for QR codes
+            document.getElementById('qrcode-ip').innerHTML = '<canvas id="canvas-ip"></canvas>';
+            document.getElementById('qrcode-track').innerHTML = '<canvas id="canvas-track"></canvas>';
+            
+            // Generate QR codes
+            generateQRCode('canvas-ip', 'http://192.168.1.104:3000/');
+            generateQRCode('canvas-track', 'http://192.168.1.104:3000/track/test123');
+        });
+    </script>
+</body>
+</html>

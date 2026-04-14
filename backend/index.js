@@ -244,6 +244,33 @@ app.get('/api/test-stripe', (req, res) => {
   });
 });
 
+// Root-level tracking endpoint (for QR codes)
+app.get('/track/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Import required modules
+    const User = require('./models/User');
+    
+    // Find user by QR code ID
+    const user = await User.findOne({ 'qrCodes.id': id });
+    if (!user) {
+      return res.status(404).send('QR code not found');
+    }
+
+    const qrCode = user.qrCodes.find(qr => qr.id === id);
+    if (!qrCode) {
+      return res.status(404).send('QR code not found');
+    }
+
+    // Redirect to the full tracking endpoint which will record the scan and redirect to destination
+    res.redirect(`/api/assets/qrcodes/${id}/redirect`);
+  } catch (error) {
+    console.error('Error in tracking endpoint:', error);
+    res.status(500).send('Server error');
+  }
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);

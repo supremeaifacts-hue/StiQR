@@ -337,11 +337,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const saveQrCode = async (qrData, imageData, name, designCharacteristics = null) => {
+  const saveQrCode = async (qrData, imageData, name, qrCodeId = null, designCharacteristics = null) => {
     try {
       console.log('AuthContext: Saving QR code, isAuthenticated:', !!user);
       console.log('AuthContext: QR data:', qrData?.substring(0, 50) + '...');
       console.log('AuthContext: Image data length:', imageData?.length || 0);
+      console.log('AuthContext: QR Code ID:', qrCodeId);
       console.log('AuthContext: Design characteristics:', designCharacteristics);
       
       // Get JWT token from localStorage
@@ -363,6 +364,7 @@ export const AuthProvider = ({ children }) => {
           data: qrData,
           imageData,
           name: name || 'Untitled QR Code',
+          qrCodeId: qrCodeId, // Send QR code ID to backend
           design: designCharacteristics // Send design characteristics to backend
         })
       });
