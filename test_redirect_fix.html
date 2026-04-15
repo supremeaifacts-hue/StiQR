@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Redirect Fix</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            line-height: 1.6;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .pass {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .fail {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        code {
+            background-color: #f8f9fa;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        .test-link {
+            display: inline-block;
+            margin: 10px 0;
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        .test-link:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Redirect Fix for /track/:id Endpoint</h1>
+    
+    <div class="test-result info">
+        <h3>Problem Fixed</h3>
+        <p><strong>Issue:</strong> The <code>/track/:id</code> endpoint was returning JSON instead of doing an HTML redirect.</p>
+        <p><strong>Solution:</strong> Updated the endpoint to:</p>
+        <ol>
+            <li>Find the QR code in the database</li>
+            <li>Increment the scan count</li>
+            <li>Return a proper 302 redirect to the target URL</li>
+        </ol>
+    </div>
+    
+    <div class="test-result pass">
+        <h3>Changes Made to <code>backend/index.js</code></h3>
+        <pre><code>// BEFORE:
+res.redirect(`/api/assets/qrcodes/${id}/redirect`);
+
+// AFTER:
+// Increment scan count
+qrCode.scans = (qrCode.scans || 0) + 1;
+qrCode.lastScanned = new Date();
+user.stats.totalScans = (user.stats.totalScans || 0) + 1;
+await user.save();
+
+// Redirect to target URL
+let targetUrl = qrCode.data;
+if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
+  targetUrl = 'https://' + targetUrl;
+}
+return res.redirect(targetUrl);</code></pre>
+    </div>
+    
+    <div class="test-result info">
+        <h3>Test the Fix</h3>
+        <p>Follow these steps:</p>
+        <ol>
+            <li>Create a QR code in the editor (e.g., for <code>google.com</code>)</li>
+            <li>Save it to your dashboard</li>
+            <li>Get the QR code ID from browser console or dashboard</li>
+            <li>Test the tracking URL directly</li>
+        </ol>
+        
+        <p><strong>Test URL format:</strong> <code>http://192.168.1.111:3000/track/[qrCodeId]</code></p>
+        
+        <p><a href="http://192.168.1.111:3000/track/test123" class="test-link" target="_blank">
+            Test with dummy ID: http://192.168.1.111:3000/track/test123
+        </a></p>
+        
+        <p><em>Note: Replace <code>test123</code> with an actual QR code ID from your dashboard</em></p>
+    </div>
+    
+    <div class="test-result info">
+        <h3>Expected Behavior</h3>
+        <ol>
+            <li>When you visit <code>/track/[qrCodeId]</code>:</li>
+            <li>Backend finds the QR code</li>
+            <li>Scan count increments by 1</li>
+            <li>Browser receives 302 redirect</li>
+            <li>Browser automatically follows redirect to target URL (e.g., google.com)</li>
+            <li>Dashboard shows updated scan count</li>
+        </ol>
+    </div>
+    
+    <div class="test-result pass">
+        <h3>Manual Test with curl</h3>
+        <pre><code># Test redirect (should show 302 status and Location header)
+curl -v http://192.168.1.111:3000/track/[qrCodeId]
+
+# Expected output:
+# HTTP/1.1 302 Found
+# Location: https://google.com
+# ... redirects automatically ...</code></pre>
+    </div>
+    
+    <div class="test-result info">
+        <h3>Verification</h3>
+        <p>To verify the fix is working:</p>
+        <ol>
+            <li>Scan a QR code with your phone</li>
+            <li>It should briefly show the tracking URL</li>
+            <li>Then automatically redirect to the destination</li>
+            <li>Check dashboard - scan count should increase</li>
+            <li>No JSON should be displayed/downloaded</li>
+        </ol>
+    </div>
+    
+    <script>
+        console.log("Test Redirect Fix Page Loaded");
+        console.log("Backend URL: http://192.168.1.111:3000");
+        console.log("Tracking endpoint: /track/:id");
+        console.log("Endpoint now does proper HTML redirect instead of returning JSON");
+        
+        // Test the backend is accessible
+        fetch('http://192.168.1.111:3000/')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Backend accessible:', data);
+                document.getElementById('backend-status').innerHTML = 
+                    '<div class="test-result pass">✓ Backend running at 192.168.1.111:3000</div>';
+            })
+            .catch(error => {
+                console.error('Backend not accessible:', error);
+                document.getElementById('backend-status').innerHTML = 
+                    '<div class="test-result fail">✗ Backend not accessible at 192.168.1.111:3000</div>';
+            });
+    </script>
+    
+    <div id="backend-status"></div>
+</body>
+</html>

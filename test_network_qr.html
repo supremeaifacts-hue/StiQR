@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network QR Code Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            line-height: 1.6;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .pass {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .fail {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        code {
+            background-color: #f8f9fa;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        .qr-test {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Network QR Code Test</h1>
+    
+    <div class="test-result info">
+        <h3>Problem Identified</h3>
+        <p><strong>Issue:</strong> QR codes were encoding <code>localhost:3000</code> which doesn't work when scanned from a phone.</p>
+        <p><strong>Solution:</strong> Updated <code>frontend/.env.development</code> to use your computer's IP address: <code>192.168.1.111:3000</code></p>
+    </div>
+    
+    <div class="test-result pass">
+        <h3>Changes Made</h3>
+        <ol>
+            <li>Updated <code>frontend/.env.development</code>:
+                <ul>
+                    <li>Changed: <code>VITE_BACKEND_URL=http://localhost:3000</code></li>
+                    <li>To: <code>VITE_BACKEND_URL=http://192.168.1.111:3000</code></li>
+                </ul>
+            </li>
+            <li>Restarted frontend development server</li>
+            <li>QR codes now encode: <code>http://192.168.1.111:3000/track/[qrCodeId]</code></li>
+        </ol>
+    </div>
+    
+    <div class="qr-test">
+        <h3>Test Instructions</h3>
+        <ol>
+            <li>Open QR editor: <a href="http://localhost:5174">http://localhost:5174</a></li>
+            <li>Create a QR code with URL: <code>www.expedia.com</code></li>
+            <li>Click "Save to My QR codes"</li>
+            <li>Check browser console for logs - look for tracking URL</li>
+            <li>It should show: <code>http://192.168.1.111:3000/track/[qrCodeId]</code></li>
+            <li>Scan the QR code from your phone</li>
+            <li>Check dashboard - scan count should now increase!</li>
+        </ol>
+    </div>
+    
+    <div class="test-result info">
+        <h3>How It Works Now</h3>
+        <ol>
+            <li>QR code encodes: <code>http://192.168.1.111:3000/track/[qrCodeId]</code></li>
+            <li>Phone scans QR code and visits that URL</li>
+            <li>Backend records scan (increments count)</li>
+            <li>Backend redirects phone to <code>www.expedia.com</code></li>
+            <li>Dashboard shows updated scan count</li>
+        </ol>
+    </div>
+    
+    <div class="test-result pass">
+        <h3>Verification Test</h3>
+        <p>Test the backend directly:</p>
+        <pre><code># Test backend is accessible from network
+curl http://192.168.1.111:3000/
+
+# Should return: {"message":"StickerQR backend running","version":"1.0.0","environment":"development"}</code></pre>
+        
+        <p>Test from your phone:</p>
+        <ol>
+            <li>Open browser on phone</li>
+            <li>Visit: <code>http://192.168.1.111:3000/</code></li>
+            <li>Should see the same JSON response</li>
+        </ol>
+    </div>
+    
+    <div class="test-result info">
+        <h3>Troubleshooting</h3>
+        <p>If it still doesn't work:</p>
+        <ol>
+            <li>Check Windows Firewall - allow port 3000</li>
+            <li>Make sure backend is running: <code>node backend/index.js</code></li>
+            <li>Check MongoDB is running</li>
+            <li>Verify QR code actually encodes the IP address (scan with QR scanner app)</li>
+            <li>Check browser console for errors when saving QR code</li>
+        </ol>
+    </div>
+    
+    <script>
+        console.log("Network QR Code Test Page Loaded");
+        console.log("Your IP address: 192.168.1.111");
+        console.log("Backend URL should be: http://192.168.1.111:3000");
+        console.log("QR codes should encode: http://192.168.1.111:3000/track/[qrCodeId]");
+        
+        // Test backend accessibility
+        fetch('http://192.168.1.111:3000/')
+            .then(response => response.json())
+            .then(data => {
+                console.log('Backend test successful:', data);
+                document.getElementById('backend-test').innerHTML = 
+                    '<div class="test-result pass">✓ Backend accessible at 192.168.1.111:3000</div>';
+            })
+            .catch(error => {
+                console.error('Backend test failed:', error);
+                document.getElementById('backend-test').innerHTML = 
+                    '<div class="test-result fail">✗ Backend NOT accessible at 192.168.1.111:3000</div>';
+            });
+    </script>
+    
+    <div id="backend-test"></div>
+</body>
+</html>

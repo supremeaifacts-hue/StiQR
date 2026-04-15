@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scan Tracking Fix Verification</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            line-height: 1.6;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .pass {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .fail {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        code {
+            background-color: #f8f9fa;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        .steps {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Scan Tracking Fix Verification</h1>
+    
+    <div class="test-result info">
+        <h3>Problem Identified</h3>
+        <p><strong>Issue:</strong> When creating a QR code (e.g., redirecting to www.expedia.com) and saving it to the dashboard, the scan count didn't increase when the QR code was scanned.</p>
+        <p><strong>Root Cause:</strong> The saved QR code image was encoding the actual URL (www.expedia.com) instead of the tracking URL (<code>http://localhost:3000/track/[qrCodeId]</code>).</p>
+    </div>
+    
+    <div class="test-result pass">
+        <h3>Solution Implemented</h3>
+        <p>Fixed two places in <code>frontend/src/EditorPage.js</code>:</p>
+        <ol>
+            <li><strong>Download QR Code button</strong> (line ~560-600): Already generating QR code with tracking URL ✓</li>
+            <li><strong>Save to My QR codes button</strong> (line ~2106-2140): Now generates QR code with tracking URL instead of using preview image ✓</li>
+        </ol>
+        <p><strong>Key Change:</strong> Both buttons now generate a new QR code image that encodes the tracking URL, not the actual content.</p>
+    </div>
+    
+    <div class="steps">
+        <h3>How Scan Tracking Now Works:</h3>
+        <ol>
+            <li>User creates QR code with URL (e.g., www.expedia.com)</li>
+            <li>Preview shows QR code with actual URL (for visual feedback)</li>
+            <li>When user clicks "Save to My QR codes":</li>
+            <ul>
+                <li>Generates new QR code image with tracking URL: <code>http://localhost:3000/track/[qrCodeId]</code></li>
+                <li>Saves this image to dashboard</li>
+                <li>Backend stores QR code with scan count initialized to 0</li>
+            </ul>
+            <li>When someone scans the QR code:</li>
+            <ul>
+                <li>They visit tracking URL: <code>http://localhost:3000/track/[qrCodeId]</code></li>
+                <li>Backend records scan (increments count, records device info)</li>
+                <li>Redirects to actual URL (www.expedia.com)</li>
+            </ul>
+            <li>Dashboard shows updated scan count</li>
+        </ol>
+    </div>
+    
+    <div class="test-result info">
+        <h3>Testing Instructions</h3>
+        <ol>
+            <li>Open the QR editor at <a href="http://localhost:5174">http://localhost:5174</a></li>
+            <li>Create a QR code with URL: <code>www.expedia.com</code></li>
+            <li>Click "Save to My QR codes" (must be logged in)</li>
+            <li>Go to Dashboard and find your saved QR code</li>
+            <li>Scan the QR code (or visit the tracking URL directly)</li>
+            <li>Check dashboard - scan count should increase by 1</li>
+            <li>Repeat scanning - count should keep increasing</li>
+        </ol>
+    </div>
+    
+    <div class="test-result pass">
+        <h3>Expected Results</h3>
+        <ul>
+            <li>✓ QR code preview updates in real-time as user types (shows actual URL)</li>
+            <li>✓ Saved QR code encodes tracking URL for scan tracking</li>
+            <li>✓ Downloaded QR code encodes tracking URL for scan tracking</li>
+            <li>✓ Each scan increments scan count by 1</li>
+            <li>✓ Dashboard displays updated scan counts</li>
+            <li>✓ User redirected to actual destination after scan is recorded</li>
+        </ul>
+    </div>
+    
+    <div class="test-result info">
+        <h3>Technical Details</h3>
+        <p><strong>Preview vs Saved QR Codes:</strong></p>
+        <ul>
+            <li><strong>Preview:</strong> Encodes actual content (www.expedia.com) for real-time visual feedback</li>
+            <li><strong>Saved/Downloaded:</strong> Encodes tracking URL (<code>http://localhost:3000/track/[qrCodeId]</code>) for scan tracking</li>
+        </ul>
+        <p><strong>Backend Endpoints:</strong></p>
+        <ul>
+            <li><code>POST /api/assets/qrcodes</code> - Save QR code with tracking URL</li>
+            <li><code>GET /track/:id</code> - Record scan and redirect to destination</li>
+            <li><code>GET /api/assets/qrcodes/:id/redirect</code> - Full scan tracking with device info</li>
+        </ul>
+    </div>
+    
+    <script>
+        console.log("Scan Tracking Fix Verification Page Loaded");
+        console.log("Fix has been applied to frontend/src/EditorPage.js");
+        console.log("Both 'Download QR Code' and 'Save to My QR codes' now generate QR codes with tracking URLs");
+    </script>
+</body>
+</html>

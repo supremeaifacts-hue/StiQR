@@ -337,6 +337,43 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const deleteQrCode = async (qrCodeId) => {
+    try {
+      console.log('AuthContext: Deleting QR code, ID:', qrCodeId);
+      
+      // Get JWT token from localStorage
+      const token = localStorage.getItem('jwtToken');
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      
+      // Add Authorization header if token exists
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(`${API_BASE_URL}/api/assets/qrcodes/${qrCodeId}`, {
+        method: 'DELETE',
+        headers,
+        credentials: 'include',
+      });
+
+      console.log('AuthContext: Delete QR code response status:', response.status, response.statusText);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('AuthContext: Failed to delete QR code:', errorText);
+        throw new Error(`Failed to delete QR code: ${response.status} ${response.statusText}`);
+      }
+
+      console.log('AuthContext: QR code deleted successfully');
+      return true;
+    } catch (error) {
+      console.error('AuthContext: Error deleting QR code:', error);
+      throw error;
+    }
+  };
+
   const saveQrCode = async (qrData, imageData, name, qrCodeId = null, designCharacteristics = null) => {
     try {
       console.log('AuthContext: Saving QR code, isAuthenticated:', !!user);
@@ -489,6 +526,7 @@ export const AuthProvider = ({ children }) => {
     saveLogo,
     deleteSticker,
     deleteLogo,
+    deleteQrCode,
     saveQrCode,
     getUserAssets,
     canCreateDynamicQrCodes,

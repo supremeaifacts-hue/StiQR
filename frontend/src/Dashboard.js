@@ -4,7 +4,7 @@ import TopBar from './TopBar';
 import StatisticsModal from './StatisticsModal';
 
 const Dashboard = ({ onCreate, onViewPricing, onBack, onEditQrCode }) => {
-  const { user, isAuthenticated, logout, demoLogin, getUserAssets, saveSticker, saveLogo, deleteSticker, deleteLogo, saveQrCode, canCreateDynamicQrCodes, getTrialDaysLeft, isProUser } = useAuth();
+  const { user, isAuthenticated, logout, demoLogin, getUserAssets, saveSticker, saveLogo, deleteSticker, deleteLogo, deleteQrCode, saveQrCode, canCreateDynamicQrCodes, getTrialDaysLeft, isProUser } = useAuth();
   const [userAssets, setUserAssets] = useState({ stickers: [], logos: [], qrCodes: [] });
   const [loadingAssets, setLoadingAssets] = useState(false);
   const [openDropdownId, setOpenDropdownId] = useState(null);
@@ -324,16 +324,18 @@ const Dashboard = ({ onCreate, onViewPricing, onBack, onEditQrCode }) => {
         console.log('Removed design characteristics from localStorage:', designStorageKey);
       }
       
-      // For demo purposes, we'll filter it out from the local state
-      // In a real app, you would call: await deleteQrCode(qrCode.id);
+      // Call the backend API to delete the QR code permanently
+      await deleteQrCode(qrCode.id);
+      
+      // Also remove from local state
       const updatedQrCodes = userAssets.qrCodes.filter(qr => qr.id !== qrCode.id);
       setUserAssets({
         ...userAssets,
         qrCodes: updatedQrCodes
       });
       
-      console.log('QR code deleted successfully (local state)');
-      alert(`QR code "${qrCode.name}" has been deleted permanently.`);
+      console.log('QR code deleted successfully from database');
+      alert(`QR code "${qrCode.name}" has been deleted permanently from the database.`);
       
     } catch (error) {
       console.error('Failed to delete QR code:', error);

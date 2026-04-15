@@ -27,12 +27,43 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
   // State for tracking URL
   const [qrCodeId, setQrCodeId] = useState(generateId());
   
+  // Function to regenerate QR code ID (call this when creating new QR code)
+  const regenerateQrCodeId = () => {
+    const newId = generateId();
+    setQrCodeId(newId);
+    console.log('Regenerated QR code ID:', newId);
+    return newId;
+  };
+  
   // Generate tracking URL
   const getTrackingUrl = () => {
-    // Use IP address for network access (phone scanning)
-    // In production, this should be configured via environment variable
-    const backendHost = window.location.hostname === 'localhost' ? '192.168.1.104' : window.location.hostname;
-    return `http://${backendHost}:3000/track/${qrCodeId}`;
+    // For QR codes to be scannable from phones on the network,
+    // we need to use the server's network IP, not localhost.
+    // In development, you can set VITE_BACKEND_URL environment variable.
+    // Example: VITE_BACKEND_URL=http://192.168.1.104:3000
+    let backendUrl;
+    
+    // Check for environment variable first
+    if (import.meta.env.VITE_BACKEND_URL) {
+      backendUrl = import.meta.env.VITE_BACKEND_URL;
+    } else {
+      // Fallback logic for development
+      const isLocalhost = window.location.hostname === 'localhost' || 
+                         window.location.hostname === '127.0.0.1';
+      
+      if (isLocalhost) {
+        // For local development, use localhost (for testing on same machine)
+        backendUrl = 'http://localhost:3000';
+      } else {
+        // For production or network access, use current hostname
+        backendUrl = `http://${window.location.hostname}:3000`;
+      }
+    }
+    
+    // Remove trailing slash if present
+    backendUrl = backendUrl.replace(/\/$/, '');
+    
+    return `${backendUrl}/track/${qrCodeId}`;
   };
   
   // Email-specific state
@@ -215,7 +246,26 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
 
   useEffect(() => {
     const generateQRCode = async () => {
-      if (qrData && canvasRef.current) {
+      // Only generate QR code if we have data to encode
+      // For URL type, require at least some text
+      // For other types, check their specific data
+      let hasData = false;
+      
+      if (selectedType === 'url' || selectedType === 'text') {
+        hasData = qrData && qrData.trim().length > 0;
+      } else if (selectedType === 'email') {
+        hasData = emailData.email && emailData.email.trim().length > 0;
+      } else if (selectedType === 'sms' || selectedType === 'whatsapp') {
+        hasData = smsData.phoneNumber && smsData.phoneNumber.trim().length > 0;
+      } else if (selectedType === 'wifi') {
+        hasData = wifiData.ssid && wifiData.ssid.trim().length > 0;
+      } else if (selectedType === 'pdf') {
+        hasData = pdfFile !== null;
+      } else {
+        hasData = qrData && qrData.trim().length > 0;
+      }
+      
+      if (hasData && canvasRef.current) {
         // FIXED PREVIEW AREA: Always use 270x300px canvas for preview
         const canvasWidth = 270;
         const canvasHeight = 300;
@@ -260,9 +310,39 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
         tempCanvas.height = qrAreaSize;
         
         await new Promise((resolve, reject) => {
+          // For preview, encode the actual content so user can see QR code update as they type
+          // The final downloaded QR code will use tracking URL for scan tracking
+          let qrContent;
+          
+          if (selectedType === 'url' || selectedType === 'text') {
+            qrContent = qrData;
+          } else if (selectedType === 'email') {
+            // Format email as mailto: link
+            const subject = emailData.subject ? `?subject=${encodeURIComponent(emailData.subject)}` : '';
+            const body = emailData.message ? `${subject ? '&' : '?'}body=${encodeURIComponent(emailData.message)}` : '';
+            qrContent = `mailto:${emailData.email}${subject}${body}`;
+          } else if (selectedType === 'sms') {
+            // Format SMS as sms: link
+            const body = smsData.message ? `?body=${encodeURIComponent(smsData.message)}` : '';
+            qrContent = `sms:${smsData.countryCode}${smsData.phoneNumber}${body}`;
+          } else if (selectedType === 'whatsapp') {
+            // Format WhatsApp as https://wa.me/ link
+            const text = smsData.message ? `?text=${encodeURIComponent(smsData.message)}` : '';
+            qrContent = `https://wa.me/${smsData.countryCode.replace('+', '')}${smsData.phoneNumber}${text}`;
+          } else if (selectedType === 'wifi') {
+            // Format WiFi credentials
+            qrContent = `WIFI:S:${wifiData.ssid};T:${wifiData.encryption};P:${wifiData.password};;`;
+          } else if (selectedType === 'pdf') {
+            // For PDF, we can't encode the file in QR code directly
+            // Use a placeholder or the tracking URL
+            qrContent = getTrackingUrl();
+          } else {
+            qrContent = qrData || getTrackingUrl();
+          }
+          
           QRCode.toCanvas(
             tempCanvas,
-            getTrackingUrl(), // Use tracking URL instead of destination URL
+            qrContent,
             {
               width: qrAreaSize,
               margin: includeMargin ? 2 : 0,
@@ -448,7 +528,7 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
     };
     
     generateQRCode();
-  }, [qrData, qrColor, bgColor, qrSize, errorCorrectionLevel, includeMargin, selectedSticker, selectedLogo, selectedFrame, framePhrase, frameFont, frameColor]);
+  }, [qrData, qrColor, bgColor, qrSize, errorCorrectionLevel, includeMargin, selectedSticker, selectedLogo, selectedFrame, framePhrase, frameFont, frameColor, selectedType, emailData, smsData, wifiData, pdfFile, qrCodeId]);
          
 
   const handleLogoUpload = async (e) => {
@@ -482,17 +562,53 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
 
   const handleDownload = async () => {
     if (canvasRef.current && qrData) {
+      // Generate a new QR code ID for this download
+      const newQrCodeId = generateId();
+      setQrCodeId(newQrCodeId);
+      
       // Use tracking URL for QR code generation
       const trackingUrl = getTrackingUrl();
       let savedQrCode = null;
       
       if (isAuthenticated) {
         try {
-          // Generate current QR code image
-          const imageData = canvasRef.current.toDataURL('image/png');
+          // Generate QR code image with tracking URL for saving to dashboard
+          const trackingCanvas = document.createElement('canvas');
+          trackingCanvas.width = 270;
+          trackingCanvas.height = 300;
+          
+          await new Promise((resolve, reject) => {
+            // Use tracking URL for saved QR codes
+            const qrContent = trackingUrl;
+            
+            QRCode.toCanvas(
+              trackingCanvas,
+              qrContent,
+              {
+                width: 240,
+                margin: includeMargin ? 2 : 0,
+                color: {
+                  dark: qrColor,
+                  light: bgColor,
+                },
+                errorCorrectionLevel: errorCorrectionLevel,
+              },
+              (error) => {
+                if (error) {
+                  console.error('QR Code generation error for saving:', error);
+                  reject(error);
+                } else {
+                  resolve();
+                }
+              }
+            );
+          });
+          
+          // Convert to data URL
+          const imageData = trackingCanvas.toDataURL('image/png');
           
           // Save QR code to backend with tracking URL
-          savedQrCode = await saveQrCode(qrData, imageData, `QR Code ${new Date().toLocaleDateString()}`, qrCodeId);
+          savedQrCode = await saveQrCode(qrData, imageData, `QR Code ${new Date().toLocaleDateString()}`, newQrCodeId);
           console.log('QR code saved to user account:', savedQrCode);
           
           // Note: The backend should use the same qrCodeId we generated
@@ -515,12 +631,15 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
         canvas.height = qrSize * 2 + 250; // Original dimensions for other frames
       }
       
-      // Generate QR code with tracking URL (skip for Frame #1 and Frame #2 - we'll draw them ourselves)
+      // Generate QR code (skip for Frame #1 and Frame #2 - we'll draw them ourselves)
       if (selectedFrame !== 'frame1' && selectedFrame !== 'frame2') {
         await new Promise((resolve, reject) => {
+          // ALL QR codes should use tracking URL for scan tracking
+          const qrContent = trackingUrl;
+          
           QRCode.toCanvas(
             canvas,
-            trackingUrl,
+            qrContent,
             {
               width: qrSize - 60, // Account for white area padding
               margin: includeMargin ? 2 : 0,
@@ -651,9 +770,12 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
             
             // Generate QR code on temporary canvas
             await new Promise((resolve, reject) => {
+              // ALL QR codes should use tracking URL for scan tracking
+              const qrContent = trackingUrl;
+              
               QRCode.toCanvas(
                 tempCanvas,
-                trackingUrl,
+                qrContent,
                 {
                   width: 240,
                   margin: includeMargin ? 2 : 0,
@@ -749,9 +871,12 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
             
             // Generate QR code on temporary canvas
             await new Promise((resolve, reject) => {
+              // ALL QR codes should use tracking URL for scan tracking
+              const qrContent = trackingUrl;
+              
               QRCode.toCanvas(
                 tempCanvas,
-                trackingUrl,
+                qrContent,
                 {
                   width: 230,
                   margin: includeMargin ? 2 : 0,
@@ -1987,8 +2112,41 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
               }
               
               try {
-                // Generate current QR code image
-                const imageData = canvasRef.current.toDataURL('image/png');
+                // Generate QR code image with tracking URL for saving to dashboard
+                const trackingCanvas = document.createElement('canvas');
+                trackingCanvas.width = 270;
+                trackingCanvas.height = 300;
+                
+                await new Promise((resolve, reject) => {
+                  // Use tracking URL for saved QR codes
+                  const trackingUrl = getTrackingUrl();
+                  const qrContent = trackingUrl;
+                  
+                  QRCode.toCanvas(
+                    trackingCanvas,
+                    qrContent,
+                    {
+                      width: 240,
+                      margin: includeMargin ? 2 : 0,
+                      color: {
+                        dark: qrColor,
+                        light: bgColor,
+                      },
+                      errorCorrectionLevel: errorCorrectionLevel,
+                    },
+                    (error) => {
+                      if (error) {
+                        console.error('QR Code generation error for saving:', error);
+                        reject(error);
+                      } else {
+                        resolve();
+                      }
+                    }
+                  );
+                });
+                
+                // Convert to data URL
+                const imageData = trackingCanvas.toDataURL('image/png');
                 
                 // Create design characteristics object
                 const designCharacteristics = {

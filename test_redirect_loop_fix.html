@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redirect Loop Fix Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 40px;
+            line-height: 1.6;
+        }
+        .test {
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        .pass {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+        .fail {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border-color: #bee5eb;
+        }
+        code {
+            background-color: #f8f9fa;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <h1>Redirect Loop Fix Test</h1>
+    
+    <div class="test info">
+        <h2>Problem: Redirect Loop</h2>
+        <p><strong>Symptom:</strong> When scanning a QR code, you get "redirected you too many times" error.</p>
+        
+        <h3>Root Cause:</h3>
+        <ol>
+            <li>QR codes encode: <code>http://192.168.1.111:3000/track/[qrCodeId]</code></li>
+            <li><strong>OLD BEHAVIOR:</strong> <code>/track/:id</code> → redirects to <code>/api/assets/qrcodes/:id/redirect</code> → returns JSON (causes issues)</li>
+            <li><strong>NEW BEHAVIOR:</strong> <code>/track/:id</code> → finds QR code → increments scans → redirects to destination (e.g., google.com)</li>
+        </ol>
+        
+        <h3>Solution Applied:</h3>
+        <p>The <code>/track/:id</code> endpoint has been fixed to directly redirect to the destination URL instead of redirecting to another endpoint.</p>
+    </div>
+    
+    <div class="test">
+        <h2>Test 1: Check Backend Status</h2>
+        <button onclick="testBackend()">Test Backend Connection</button>
+        <div id="backend-result" class="result"></div>
+    </div>
+    
+    <div class="test">
+        <h2>Test 2: Test Tracking Endpoint</h2>
+        <p>Enter a QR code ID from your dashboard:</p>
+        <input type="text" id="qrId" placeholder="e.g., mo0nq4ei51p3ldy6lc9" style="width: 300px; padding: 5px;">
+        <button onclick="testTracking()">Test Tracking URL</button>
+        <div id="tracking-result" class="result"></div>
+    </div>
+    
+    <div class="test">
+        <h2>Test 3: Manual Test with Browser</h2>
+        <p>Open this link in a new tab (replace with your QR code ID):</p>
+        <p><a href="http://192.168.1.111:3000/track/mo0nq4ei51p3ldy6lc9" target="_blank">http://192.168.1.111:3000/track/mo0nq4ei51p3ldy6lc9</a></p>
+        <p><strong>Expected:</strong> Should redirect to <code>https://www.qr.io</code></p>
+        <p><strong>If you get a loop:</strong> Clear browser cache (Ctrl+Shift+Delete) and try again.</p>
+    </div>
+    
+    <div class="test info">
+        <h2>If You Still Have Issues:</h2>
+        <ol>
+            <li><strong>Clear browser cache</strong> (Ctrl+Shift+Delete)</li>
+            <li><strong>Regenerate your QR codes</strong> in the editor (old QR codes might have cached behavior)</li>
+            <li><strong>Test in incognito/private mode</strong> to avoid cache issues</li>
+            <li><strong>Check the backend logs</strong> when scanning - you should see:
+                <pre>🔍 Tracking endpoint called for ID: [your-id]
+📊 Found QR code: { id: ..., data: 'destination.com' }
+✅ Scan recorded. New scan count: [number]
+🔗 Redirecting to: https://destination.com</pre>
+            </li>
+        </ol>
+    </div>
+    
+    <div class="test pass">
+        <h2>Fix Verification</h2>
+        <p>The backend fix has been applied. The <code>/track/:id</code> endpoint now:</p>
+        <ol>
+            <li>Finds the QR code in database</li>
+            <li>Increments scan count</li>
+            <li>Redirects to the destination URL (e.g., google.com)</li>
+            <li>Does NOT redirect to another tracking URL</li>
+            <li>Does NOT return JSON</li>
+        </ol>
+        <p><strong>Status:</strong> ✅ FIXED</p>
+    </div>
+    
+    <script>
+        async function testBackend() {
+            const resultDiv = document.getElementById('backend-result');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.textContent = 'Testing...';
+            
+            try {
+                const response = await fetch('http://192.168.1.111:3000/');
+                const data = await response.json();
+                resultDiv.className = 'result success';
+                resultDiv.innerHTML = `
+                    ✅ Backend is running!<br>
+                    Message: ${data.message}<br>
+                    Version: ${data.version}<br>
+                    Environment: ${data.environment}
+                `;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Backend not accessible: ${error.message}`;
+            }
+        }
+        
+        async function testTracking() {
+            const qrId = document.getElementById('qrId').value.trim();
+            if (!qrId) {
+                alert('Please enter a QR code ID');
+                return;
+            }
+            
+            const resultDiv = document.getElementById('tracking-result');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.textContent = 'Testing...';
+            
+            try {
+                // Use fetch with redirect: 'manual' to see the redirect without following it
+                const response = await fetch(`http://192.168.1.111:3000/track/${qrId}`, {
+                    redirect: 'manual'
+                });
+                
+                if (response.status === 302 || response.status === 301) {
+                    const location = response.headers.get('location');
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+                        ✅ Redirect working!<br>
+                        Status: ${response.status} ${response.statusText}<br>
+                        Redirects to: <code>${location}</code><br>
+                        <small>Note: Browser will automatically follow this redirect</small>
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `
+                        ❌ Unexpected response:<br>
+                        Status: ${response.status} ${response.statusText}<br>
+                        Expected: 302 Found with Location header
+                    `;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Error: ${error.message}`;
+            }
+        }
+        
+        // Auto-test backend on page load
+        window.addEventListener('load', testBackend);
+    </script>
+</body>
+</html>
