@@ -154,6 +154,76 @@ app.post('/api/webhook',
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Root-level tracking endpoint (for QR codes) - MUST be BEFORE passport middleware
+app.get('/track/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    console.log(`🔍 Tracking endpoint called for ID: ${id}`);
+    
+    // Import required modules
+    const User = require('./models/User');
+    
+    // Find user by QR code ID
+    const user = await User.findOne({ 'qrCodes.id': id });
+    if (!user) {
+      console.log(`❌ QR code not found for ID: ${id}`);
+      return res.status(404).send('QR code not found');
+    }
+    
+    // Find the specific QR code
+    const qrCode = user.qrCodes.find(qr => qr.id === id);
+    if (!qrCode) {
+      console.log(`❌ QR code data not found for ID: ${id}`);
+      return res.status(404).send('QR code data not found');
+    }
+    
+    console.log(`📊 Found QR code:`, {
+      id: qrCode.id,
+      data: qrCode.data,
+      scans: qrCode.scans || 0
+    });
+    
+    // Increment scan count
+    qrCode.scans = (qrCode.scans || 0) + 1;
+    qrCode.lastScanned = new Date();
+    
+    // Add scan tracking data
+    const scanData = {
+      timestamp: new Date(),
+      ipAddress: req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress,
+      userAgent: req.headers['user-agent'],
+      referer: req.headers['referer']
+    };
+    
+    if (!qrCode.scanHistory) {
+      qrCode.scanHistory = [];
+    }
+    qrCode.scanHistory.push(scanData);
+    
+    // Save the user
+    await user.save();
+    
+    console.log(`✅ Scan recorded. New scan count: ${qrCode.scans}`);
+    
+    // Get the destination URL
+    let destinationUrl = qrCode.data;
+    
+    // Ensure URL has protocol
+    if (!destinationUrl.startsWith('http://') && !destinationUrl.startsWith('https://')) {
+      destinationUrl = 'https://' + destinationUrl;
+    }
+    
+    console.log(`🔗 Redirecting to: ${destinationUrl}`);
+    
+    // Redirect to the destination
+    res.redirect(302, destinationUrl);
+  } catch (error) {
+    console.error('❌ Error in tracking endpoint:', error);
+    res.status(500).send('Internal server error');
+  }
+});
+
 // Initialize passport
 app.use(passport.initialize());
 app.use(passport.session());
@@ -244,76 +314,6 @@ app.get('/api/test-stripe', (req, res) => {
   });
 });
 
-// Root-level tracking endpoint (for QR codes)
-app.get('/track/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    console.log(`🔍 Tracking endpoint called for ID: ${id}`);
-    
-    // Import required modules
-    const User = require('./models/User');
-    
-    // Find user by QR code ID
-    const user = await User.findOne({ 'qrCodes.id': id });
-    if (!user) {
-      console.log(`❌ QR code not found for ID: ${id}`);
-      return res.status(404).send('QR code not found');
-    }
-
-    const qrCode = user.qrCodes.find(qr => qr.id === id);
-    if (!qrCode) {
-      console.log(`❌ QR code not found in user's QR codes for ID: ${id}`);
-      return res.status(404).send('QR code not found');
-    }
-
-    console.log(`📊 Found QR code:`, {
-      id: qrCode.id,
-      name: qrCode.name,
-      data: qrCode.data,
-      scans: qrCode.scans
-    });
-
-    // Check if data field contains a tracking URL (this would cause a loop)
-    if (qrCode.data && qrCode.data.includes('/track/')) {
-      console.error(`❌ REDIRECT LOOP DETECTED! QR code data field contains tracking URL: ${qrCode.data}`);
-      console.error(`   This will cause infinite redirects. The data field should contain the original destination (e.g., google.com)`);
-      return res.status(500).send('Configuration error: QR code data field contains tracking URL instead of destination');
-    }
-
-    // Increment scan count
-    qrCode.scans = (qrCode.scans || 0) + 1;
-    qrCode.lastScanned = new Date();
-    
-    // Update total scans in stats
-    user.stats.totalScans = (user.stats.totalScans || 0) + 1;
-    
-    await user.save();
-
-    console.log(`✅ Scan recorded. New scan count: ${qrCode.scans}`);
-    
-    // ✅ IMPORTANT: Redirect to the target URL, NOT return JSON
-    // The QR code data field should contain the actual destination URL (e.g., google.com)
-    let targetUrl = qrCode.data;
-    
-    // Check if targetUrl is empty or invalid
-    if (!targetUrl || targetUrl.trim() === '') {
-      console.error(`❌ QR code data field is empty for ID: ${id}`);
-      return res.status(500).send('Configuration error: QR code destination URL is empty');
-    }
-    
-    // Ensure the URL has a protocol
-    if (!targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
-      targetUrl = 'https://' + targetUrl;
-    }
-    
-    console.log(`🔗 Redirecting to: ${targetUrl}`);
-    return res.redirect(targetUrl);
-  } catch (error) {
-    console.error('Error in tracking endpoint:', error);
-    res.status(500).send('Server error');
-  }
-});
 
 // Error handling middleware
 app.use((err, req, res, next) => {
