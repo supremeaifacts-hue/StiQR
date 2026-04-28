@@ -1,103 +1,193 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth, API_BASE_URL } from './contexts/AuthContext';
+import React, { useState, useMemo } from 'react';
+import { useAuth } from './contexts/AuthContext';
 
 const StatisticsModal = ({ qrCode, onClose }) => {
-  const [scanData, setScanData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [statistics, setStatistics] = useState(null);
-  const { isAuthenticated, getToken } = useAuth();
+  const { isAuthenticated } = useAuth();
 
-  useEffect(() => {
-    const fetchStatistics = async () => {
-      if (!qrCode || !qrCode.id) {
-        setError('QR code not found');
-        setLoading(false);
-        return;
+  // Filter states
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [step, setStep] = useState('day'); // 'day', 'week', 'month'
+
+  // --- DEMO / PLACEHOLDER DATA ---
+  // This data will be replaced with real scan data once the scan counter,
+  // location recognition, and OS detection are implemented.
+  // For now, it shows the complete UI layout with sample data.
+
+  const qrCodeInfo = useMemo(() => ({
+    id: qrCode?.id || 'demo-id',
+    name: qrCode?.name || 'Demo QR Code',
+    createdAt: qrCode?.createdAt || new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(), // 14 days ago
+    scans: qrCode?.scans || 0,
+  }), [qrCode]);
+
+  // Generate demo scan data
+  const allScanData = useMemo(() => {
+    const demoScans = [];
+    const cities = [
+      { city: 'New York', country: 'United States', countryCode: 'US' },
+      { city: 'London', country: 'United Kingdom', countryCode: 'GB' },
+      { city: 'Tokyo', country: 'Japan', countryCode: 'JP' },
+      { city: 'Paris', country: 'France', countryCode: 'FR' },
+      { city: 'Berlin', country: 'Germany', countryCode: 'DE' },
+      { city: 'Sydney', country: 'Australia', countryCode: 'AU' },
+      { city: 'Toronto', country: 'Canada', countryCode: 'CA' },
+      { city: 'Mumbai', country: 'India', countryCode: 'IN' },
+      { city: 'São Paulo', country: 'Brazil', countryCode: 'BR' },
+      { city: 'Seoul', country: 'South Korea', countryCode: 'KR' },
+      { city: 'Moscow', country: 'Russia', countryCode: 'RU' },
+      { city: 'Dubai', country: 'UAE', countryCode: 'AE' },
+      { city: 'Singapore', country: 'Singapore', countryCode: 'SG' },
+      { city: 'Hong Kong', country: 'China', countryCode: 'CN' },
+      { city: 'Amsterdam', country: 'Netherlands', countryCode: 'NL' },
+    ];
+    const osList = ['iOS', 'Android', 'Windows', 'macOS', 'Linux', 'ChromeOS'];
+    const deviceTypes = ['phone', 'tablet', 'desktop', 'other'];
+
+    // Generate 50 demo scans spread over the last 30 days
+    for (let i = 0; i < 50; i++) {
+      const daysAgo = Math.floor(Math.random() * 30);
+      const hoursAgo = Math.floor(Math.random() * 24);
+      const minsAgo = Math.floor(Math.random() * 60);
+      const timestamp = new Date(Date.now() - (daysAgo * 24 * 60 * 60 * 1000) - (hoursAgo * 60 * 60 * 1000) - (minsAgo * 60 * 1000));
+      
+      const location = cities[Math.floor(Math.random() * cities.length)];
+      const os = osList[Math.floor(Math.random() * osList.length)];
+      const deviceType = deviceTypes[Math.floor(Math.random() * deviceTypes.length)];
+
+      demoScans.push({
+        id: i + 1,
+        timestamp: timestamp.toISOString(),
+        city: location.city,
+        country: location.country,
+        countryCode: location.countryCode,
+        os: os,
+        deviceType: deviceType,
+        browser: ['Chrome', 'Safari', 'Firefox', 'Edge'][Math.floor(Math.random() * 4)],
+      });
+    }
+
+    // Sort by timestamp descending
+    demoScans.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    return demoScans;
+  }, []);
+
+  // Compute time since creation
+  const timeSinceCreation = useMemo(() => {
+    const created = new Date(qrCodeInfo.createdAt);
+    const now = new Date();
+    const diffMs = now - created;
+    const diffSecs = Math.floor(diffMs / 1000);
+    const diffMins = Math.floor(diffSecs / 60);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+    const diffWeeks = Math.floor(diffDays / 7);
+
+    if (diffWeeks > 0) {
+      const remainingDays = diffDays % 7;
+      return `${diffWeeks} week${diffWeeks > 1 ? 's' : ''}${remainingDays > 0 ? `, ${remainingDays} day${remainingDays > 1 ? 's' : ''}` : ''}`;
+    } else if (diffDays > 0) {
+      return `${diffDays} day${diffDays > 1 ? 's' : ''}`;
+    } else if (diffHours > 0) {
+      return `${diffHours} hour${diffHours > 1 ? 's' : ''}`;
+    } else if (diffMins > 0) {
+      return `${diffMins} minute${diffMins > 1 ? 's' : ''}`;
+    } else {
+      return `${diffSecs} second${diffSecs !== 1 ? 's' : ''}`;
+    }
+  }, [qrCodeInfo]);
+
+  // Filter scan data by date range
+  const filteredScanData = useMemo(() => {
+    let filtered = [...allScanData];
+    
+    if (dateFrom) {
+      const fromDate = new Date(dateFrom);
+      filtered = filtered.filter(s => new Date(s.timestamp) >= fromDate);
+    }
+    if (dateTo) {
+      const toDate = new Date(dateTo);
+      toDate.setHours(23, 59, 59, 999);
+      filtered = filtered.filter(s => new Date(s.timestamp) <= toDate);
+    }
+    
+    return filtered;
+  }, [allScanData, dateFrom, dateTo]);
+
+  // Total scans (filtered)
+  const totalScans = filteredScanData.length;
+
+  // Group scans by time step for the bar chart
+  const scansOverTime = useMemo(() => {
+    const groups = {};
+    
+    filteredScanData.forEach(scan => {
+      const date = new Date(scan.timestamp);
+      let key;
+      
+      if (step === 'day') {
+        key = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      } else if (step === 'week') {
+        const dayOfWeek = date.getDay();
+        const diff = date.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+        const monday = new Date(date);
+        monday.setDate(diff);
+        key = `Week of ${monday.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+      } else { // month
+        key = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
       }
-
-      try {
-        setLoading(true);
-        setError(null);
-        
-        const token = await getToken();
-        const response = await fetch(`${API_BASE_URL}/api/assets/qrcodes/${qrCode.id}/statistics`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch statistics: ${response.status}`);
-        }
-
-        const data = await response.json();
-        
-        if (data.success) {
-          setStatistics(data.statistics);
-          
-          // Convert scan history to the format expected by the component
-          const formattedScanData = (data.statistics.scanHistory || []).map((scan, index) => ({
-            id: index + 1,
-            timestamp: scan.timestamp,
-            location: `${scan.location.city}, ${scan.location.country}`,
-            device: scan.device.type === 'phone' ? 
-                    (scan.device.brand === 'Apple' ? 'iPhone' : 'Android Phone') :
-                    scan.device.type === 'tablet' ? 
-                    (scan.device.brand === 'Apple' ? 'iPad' : 'Android Tablet') :
-                    scan.device.type === 'desktop' ? 
-                    (scan.device.os.name === 'Windows' ? 'Windows PC' : 
-                     scan.device.os.name === 'macOS' ? 'Mac' : 'Desktop') : 
-                    'Other Device',
-            os: scan.device.os.name,
-            browser: scan.device.browser.name
-          }));
-          
-          setScanData(formattedScanData);
-        } else {
-          setError(data.error || 'Failed to load statistics');
-        }
-      } catch (error) {
-        console.error('Error fetching statistics:', error);
-        setError(error.message || 'Failed to load statistics');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStatistics();
-  }, [qrCode, getToken]);
-
-  // Calculate statistics
-  const totalScans = scanData.length;
-  const scansByHour = Array(24).fill(0);
-  const scansByDevice = { 'iPhone': 0, 'Android Phone': 0, 'Windows PC': 0, 'Mac': 0, 'iPad': 0 };
-  const scansByLocation = {};
-  const scansByOS = { 'iOS': 0, 'Android': 0, 'Windows': 0, 'macOS': 0 };
-
-  scanData.forEach(scan => {
-    // Count by hour
-    const hour = new Date(scan.timestamp).getHours();
-    scansByHour[hour]++;
+      
+      groups[key] = (groups[key] || 0) + 1;
+    });
     
-    // Count by device
-    scansByDevice[scan.device] = (scansByDevice[scan.device] || 0) + 1;
+    // Sort by date
+    const sorted = Object.entries(groups).sort((a, b) => {
+      const dateA = new Date(a[0]);
+      const dateB = new Date(b[0]);
+      return dateA - dateB;
+    });
     
-    // Count by location
-    scansByLocation[scan.location] = (scansByLocation[scan.location] || 0) + 1;
+    return sorted;
+  }, [filteredScanData, step]);
+
+  // Scans by OS
+  const scansByOS = useMemo(() => {
+    const osMap = {};
+    filteredScanData.forEach(scan => {
+      const os = scan.os || 'Unknown';
+      osMap[os] = (osMap[os] || 0) + 1;
+    });
     
-    // Count by OS
-    scansByOS[scan.os] = (scansByOS[scan.os] || 0) + 1;
-  });
+    return Object.entries(osMap)
+      .sort((a, b) => b[1] - a[1]);
+  }, [filteredScanData]);
 
-  // Get top locations
-  const topLocations = Object.entries(scansByLocation)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
+  // Scans by country
+  const scansByCountry = useMemo(() => {
+    const countryMap = {};
+    filteredScanData.forEach(scan => {
+      const country = scan.country || 'Unknown';
+      countryMap[country] = (countryMap[country] || 0) + 1;
+    });
+    
+    return Object.entries(countryMap)
+      .sort((a, b) => b[1] - a[1]);
+  }, [filteredScanData]);
 
-  // Get peak hour
-  const peakHour = scansByHour.indexOf(Math.max(...scansByHour));
+  // Scans by city
+  const scansByCity = useMemo(() => {
+    const cityMap = {};
+    filteredScanData.forEach(scan => {
+      const city = scan.city || 'Unknown';
+      cityMap[city] = (cityMap[city] || 0) + 1;
+    });
+    
+    return Object.entries(cityMap)
+      .sort((a, b) => b[1] - a[1]);
+  }, [filteredScanData]);
+
+  // Max count for bar chart scaling
+  const maxTimeCount = Math.max(...scansOverTime.map(([, c]) => c), 1);
 
   return (
     <div style={{
@@ -106,7 +196,7 @@ const StatisticsModal = ({ qrCode, onClose }) => {
       left: 0,
       right: 0,
       bottom: 0,
-      background: 'rgba(0, 0, 0, 0.8)',
+      background: 'rgba(0, 0, 0, 0.85)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -118,14 +208,15 @@ const StatisticsModal = ({ qrCode, onClose }) => {
         border: '1px solid rgba(0, 217, 255, 0.3)',
         borderRadius: '20px',
         padding: '30px',
-        maxWidth: '800px',
+        maxWidth: '1200px',
         width: '100%',
-        maxHeight: '90vh',
+        maxHeight: '95vh',
         overflowY: 'auto',
         color: '#fff',
         fontFamily: '"Inter", "Segoe UI", sans-serif',
       }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
           <h2 style={{ fontSize: '24px', fontWeight: '700', color: '#00D9FF', margin: 0 }}>
             📊 Statistics for "{qrCode?.name || 'QR Code'}"
           </h2>
@@ -144,345 +235,358 @@ const StatisticsModal = ({ qrCode, onClose }) => {
           </button>
         </div>
 
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '40px' }}>
-            <div style={{ fontSize: '48px', marginBottom: '20px' }}>⏳</div>
-            <div>Loading scan statistics...</div>
+        {/* TOP ROW: Total Scans (left) + Created Date & Active Time (right) */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '20px',
+          marginBottom: '25px',
+        }}>
+          {/* Total Scans */}
+          <div style={{
+            background: 'rgba(0, 217, 255, 0.1)',
+            border: '1px solid rgba(0, 217, 255, 0.3)',
+            borderRadius: '12px',
+            padding: '25px',
+            textAlign: 'center',
+          }}>
+            <div style={{ fontSize: '14px', color: '#aaa', marginBottom: '8px', fontWeight: '600' }}>TOTAL SCANS</div>
+            <div style={{ fontSize: '48px', fontWeight: '900', color: '#00D9FF', lineHeight: '1' }}>
+              {totalScans}
+            </div>
           </div>
-        ) : error ? (
-          <div style={{ textAlign: 'center', padding: '40px' }}>
-            <div style={{ fontSize: '48px', marginBottom: '20px', color: '#FF0000' }}>❌</div>
-            <div style={{ color: '#FF0000', marginBottom: '20px' }}>{error}</div>
-            <button
-              onClick={onClose}
+
+          {/* Created Date & Active Time */}
+          <div style={{
+            background: 'rgba(255, 0, 255, 0.1)',
+            border: '1px solid rgba(255, 0, 255, 0.3)',
+            borderRadius: '12px',
+            padding: '25px',
+            textAlign: 'center',
+          }}>
+            <div style={{ fontSize: '14px', color: '#aaa', marginBottom: '8px', fontWeight: '600' }}>CREATED & ACTIVE TIME</div>
+            <div style={{ fontSize: '16px', color: '#fff', marginBottom: '5px' }}>
+              📅 {qrCodeInfo?.createdAt ? new Date(qrCodeInfo.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}
+            </div>
+            <div style={{ fontSize: '14px', color: '#FF00FF', fontWeight: '600' }}>
+              Active for: {timeSinceCreation}
+            </div>
+          </div>
+        </div>
+
+        {/* FILTERS: Calendar Range + Step Selection */}
+        <div style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: '15px',
+          alignItems: 'center',
+          marginBottom: '25px',
+          padding: '15px 20px',
+          background: 'rgba(0, 0, 0, 0.4)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          borderRadius: '12px',
+        }}>
+          <div style={{ fontSize: '14px', fontWeight: '600', color: '#00D9FF' }}>📅 Filters:</div>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <label style={{ fontSize: '12px', color: '#aaa' }}>From:</label>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
               style={{
-                padding: '10px 20px',
-                background: 'rgba(0, 217, 255, 0.2)',
-                border: '1px solid rgba(0, 217, 255, 0.5)',
-                borderRadius: '8px',
-                color: '#00D9FF',
+                padding: '6px 10px',
+                background: 'rgba(0, 0, 0, 0.5)',
+                border: '1px solid rgba(0, 217, 255, 0.3)',
+                borderRadius: '6px',
+                color: '#fff',
+                fontSize: '12px',
+                outline: 'none',
+              }}
+            />
+          </div>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <label style={{ fontSize: '12px', color: '#aaa' }}>To:</label>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              style={{
+                padding: '6px 10px',
+                background: 'rgba(0, 0, 0, 0.5)',
+                border: '1px solid rgba(0, 217, 255, 0.3)',
+                borderRadius: '6px',
+                color: '#fff',
+                fontSize: '12px',
+                outline: 'none',
+              }}
+            />
+          </div>
+
+          <div style={{ width: '1px', height: '24px', background: 'rgba(255,255,255,0.2)' }} />
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <label style={{ fontSize: '12px', color: '#aaa' }}>Group by:</label>
+            <select
+              value={step}
+              onChange={(e) => setStep(e.target.value)}
+              style={{
+                padding: '6px 10px',
+                background: 'rgba(0, 0, 0, 0.5)',
+                border: '1px solid rgba(0, 217, 255, 0.3)',
+                borderRadius: '6px',
+                color: '#fff',
+                fontSize: '12px',
+                outline: 'none',
                 cursor: 'pointer',
-                fontSize: '14px',
               }}
             >
-              Close
-            </button>
+              <option value="day">Day</option>
+              <option value="week">Week</option>
+              <option value="month">Month</option>
+            </select>
           </div>
-        ) : statistics && statistics.message ? (
-          // Free tier user - show basic stats only
-          <div style={{ textAlign: 'center', padding: '40px' }}>
-            <div style={{ fontSize: '48px', marginBottom: '20px', color: '#00D9FF' }}>🔒</div>
-            <div style={{ fontSize: '18px', fontWeight: '600', marginBottom: '10px', color: '#fff' }}>
-              Basic Statistics
-            </div>
-            <div style={{ fontSize: '14px', color: '#aaa', marginBottom: '30px' }}>
-              {statistics.message}
-            </div>
-            
-            <div style={{
-              background: 'rgba(0, 217, 255, 0.1)',
-              border: '1px solid rgba(0, 217, 255, 0.3)',
-              borderRadius: '12px',
-              padding: '30px',
-              maxWidth: '300px',
-              margin: '0 auto',
-            }}>
-              <div style={{ fontSize: '32px', marginBottom: '10px' }}>🔲</div>
-              <div style={{ fontSize: '12px', color: '#aaa' }}>Total Scans</div>
-              <div style={{ fontSize: '36px', fontWeight: '700', color: '#00D9FF' }}>{statistics.totalScans || 0}</div>
-            </div>
-            
-            <div style={{ marginTop: '30px', padding: '20px', background: 'rgba(255, 0, 255, 0.1)', borderRadius: '12px' }}>
-              <div style={{ fontSize: '16px', fontWeight: '600', marginBottom: '10px', color: '#FF00FF' }}>
-                Upgrade to Pro/Ultra for Detailed Analytics
-              </div>
-              <div style={{ fontSize: '12px', color: '#aaa', marginBottom: '15px' }}>
-                Get access to:
-                <ul style={{ textAlign: 'left', margin: '10px 0 0 20px', padding: 0 }}>
-                  <li>Device type breakdown (Phone, Tablet, PC)</li>
-                  <li>Location tracking (city, country)</li>
-                  <li>Time of day analysis</li>
-                  <li>Browser and OS detection</li>
-                  <li>Historical scan data</li>
-                </ul>
-              </div>
-              <button
-                onClick={() => {
-                  onClose();
-                  // In a real app, this would navigate to pricing page
-                  window.location.href = '/pricing';
-                }}
-                style={{
-                  padding: '10px 20px',
-                  background: 'linear-gradient(135deg, #FF00FF 0%, #00D9FF 100%)',
-                  border: 'none',
-                  borderRadius: '8px',
-                  color: '#000',
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                }}
-              >
-                View Pricing Plans
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            {/* Summary Cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px', marginBottom: '30px' }}>
-              <div style={{
-                background: 'rgba(0, 217, 255, 0.1)',
-                border: '1px solid rgba(0, 217, 255, 0.3)',
-                borderRadius: '12px',
-                padding: '20px',
-                textAlign: 'center',
-              }}>
-                <div style={{ fontSize: '32px', marginBottom: '10px' }}>🔲</div>
-                <div style={{ fontSize: '12px', color: '#aaa' }}>Total Scans</div>
-                <div style={{ fontSize: '24px', fontWeight: '700' }}>{totalScans}</div>
-              </div>
+        </div>
 
-              <div style={{
-                background: 'rgba(255, 0, 255, 0.1)',
-                border: '1px solid rgba(255, 0, 255, 0.3)',
-                borderRadius: '12px',
-                padding: '20px',
-                textAlign: 'center',
-              }}>
-                <div style={{ fontSize: '32px', marginBottom: '10px' }}>📍</div>
-                <div style={{ fontSize: '12px', color: '#aaa' }}>Unique Locations</div>
-                <div style={{ fontSize: '24px', fontWeight: '700' }}>{Object.keys(scansByLocation).length}</div>
+        {/* MIDDLE ROW: Scans Over Time (left) + Scans by OS (right) */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '20px',
+          marginBottom: '25px',
+        }}>
+          {/* Scans Over Time - Bar Chart */}
+          <div style={{
+            background: 'rgba(0, 0, 0, 0.3)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '12px',
+            padding: '20px',
+            width: '100%',
+            boxSizing: 'border-box',
+            overflow: 'hidden',
+          }}>
+            <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '15px', color: '#00D9FF' }}>
+              📈 Scans Over Time
+            </h3>
+            {scansOverTime.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '30px', color: '#666', fontSize: '14px' }}>
+                No scan data available for the selected period
               </div>
-
+            ) : (
               <div style={{
-                background: 'rgba(0, 255, 0, 0.1)',
-                border: '1px solid rgba(0, 255, 0, 0.3)',
-                borderRadius: '12px',
-                padding: '20px',
-                textAlign: 'center',
+                width: '100%',
+                overflowX: 'auto',
+                overflowY: 'hidden',
               }}>
-                <div style={{ fontSize: '32px', marginBottom: '10px' }}>📱</div>
-                <div style={{ fontSize: '12px', color: '#aaa' }}>Device Types</div>
-                <div style={{ fontSize: '24px', fontWeight: '700' }}>{Object.keys(scansByDevice).length}</div>
-              </div>
-
-              <div style={{
-                background: 'rgba(255, 255, 0, 0.1)',
-                border: '1px solid rgba(255, 255, 0, 0.3)',
-                borderRadius: '12px',
-                padding: '20px',
-                textAlign: 'center',
-              }}>
-                <div style={{ fontSize: '32px', marginBottom: '10px' }}>⏰</div>
-                <div style={{ fontSize: '12px', color: '#aaa' }}>Peak Hour</div>
-                <div style={{ fontSize: '24px', fontWeight: '700' }}>{peakHour}:00</div>
-              </div>
-            </div>
-
-            {/* Charts Section */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-              {/* Device Distribution */}
-              <div style={{
-                background: 'rgba(0, 0, 0, 0.3)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '12px',
-                padding: '20px',
-              }}>
-                <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '15px', color: '#FF00FF' }}>
-                  📱 Device Distribution
-                </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  {Object.entries(scansByDevice).map(([device, count]) => {
-                    const percentage = totalScans > 0 ? Math.round((count / totalScans) * 100) : 0;
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'flex-end',
+                  gap: '6px',
+                  height: '200px',
+                  padding: '0 5px 25px 5px',
+                  borderBottom: '1px solid rgba(255,255,255,0.1)',
+                  width: `${Math.max(scansOverTime.length * 52, 100)}px`,
+                }}>
+                  {scansOverTime.map(([label, count], index) => {
+                    const height = (count / maxTimeCount) * 170;
                     return (
-                      <div key={device} style={{ marginBottom: '8px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                          <span style={{ fontSize: '12px' }}>{device}</span>
-                          <span style={{ fontSize: '12px', color: '#00D9FF' }}>{count} ({percentage}%)</span>
-                        </div>
-                        <div style={{
-                          height: '6px',
-                          background: 'rgba(255, 255, 255, 0.1)',
-                          borderRadius: '3px',
-                          overflow: 'hidden',
-                        }}>
-                          <div style={{
-                            width: `${percentage}%`,
-                            height: '100%',
-                            background: 'linear-gradient(90deg, #FF00FF, #00D9FF)',
-                            borderRadius: '3px',
-                          }}></div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Time Distribution */}
-              <div style={{
-                background: 'rgba(0, 0, 0, 0.3)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '12px',
-                padding: '20px',
-              }}>
-                <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '15px', color: '#00FF00' }}>
-                  ⏰ Scan Times (24h)
-                </h3>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                  {scansByHour.map((count, hour) => {
-                    const maxScans = Math.max(...scansByHour);
-                    const height = maxScans > 0 ? (count / maxScans) * 40 : 0;
-                    return (
-                      <div key={hour} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '30px' }}>
-                        <div style={{ fontSize: '10px', color: '#aaa', marginBottom: '4px' }}>{hour}</div>
+                      <div key={index} style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        minWidth: '46px',
+                        flexShrink: 0,
+                      }}>
+                        <div style={{ fontSize: '10px', color: '#aaa', marginBottom: '4px' }}>{count}</div>
                         <div
                           style={{
-                            width: '12px',
-                            height: `${height}px`,
-                            background: count > 0 ? 'linear-gradient(to top, #00FF00, #00D9FF)' : 'rgba(255, 255, 255, 0.1)',
-                            borderRadius: '2px',
+                            width: '28px',
+                            height: `${Math.max(height, 4)}px`,
+                            background: 'linear-gradient(to top, #00D9FF, #FF00FF)',
+                            borderRadius: '4px 4px 0 0',
                             transition: 'height 0.3s ease',
+                            cursor: 'pointer',
                           }}
-                          title={`${hour}:00 - ${count} scans`}
+                          title={`${label}: ${count} scans`}
                         ></div>
-                        <div style={{ fontSize: '9px', color: '#888', marginTop: '2px' }}>{count}</div>
+                        <div style={{
+                          fontSize: '9px',
+                          color: '#888',
+                          marginTop: '5px',
+                          whiteSpace: 'nowrap',
+                          transform: 'rotate(-45deg)',
+                          transformOrigin: 'left top',
+                          position: 'relative',
+                          top: '5px',
+                        }}>
+                          {label}
+                        </div>
                       </div>
                     );
                   })}
                 </div>
               </div>
-            </div>
+            )}
+          </div>
 
-            {/* Top Locations */}
-            <div style={{
-              background: 'rgba(0, 0, 0, 0.3)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              borderRadius: '12px',
-              padding: '20px',
-              marginBottom: '30px',
-            }}>
-              <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '15px', color: '#00D9FF' }}>
-                🌍 Top Locations
-              </h3>
+          {/* Scans by OS - Horizontal Bar Chart */}
+          <div style={{
+            background: 'rgba(0, 0, 0, 0.3)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '12px',
+            padding: '20px',
+          }}>
+            <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '15px', color: '#FF00FF' }}>
+              💻 Scans by Operating System
+            </h3>
+            {scansByOS.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '30px', color: '#666', fontSize: '14px' }}>
+                No scan data available
+              </div>
+            ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {topLocations.map(([location, count], index) => {
-                  const percentage = totalScans > 0 ? Math.round((count / totalScans) * 100) : 0;
+                {scansByOS.map(([os, count], index) => {
+                  const percentage = totalScans > 0 ? ((count / totalScans) * 100).toFixed(1) : 0;
+                  const barWidth = totalScans > 0 ? (count / totalScans) * 100 : 0;
+                  
+                  // OS icons
+                  let icon = '🖥️';
+                  const osLower = os.toLowerCase();
+                  if (osLower.includes('ios') || osLower.includes('iphone')) icon = '🍎';
+                  else if (osLower.includes('android')) icon = '🤖';
+                  else if (osLower.includes('windows')) icon = '🪟';
+                  else if (osLower.includes('mac') || osLower.includes('os x')) icon = '💻';
+                  else if (osLower.includes('linux')) icon = '🐧';
+                  else if (osLower.includes('chrome')) icon = '🌐';
+                  
                   return (
-                    <div key={location} style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                      <div style={{
-                        width: '30px',
-                        height: '30px',
-                        background: 'rgba(0, 217, 255, 0.2)',
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '14px',
-                        fontWeight: '700',
-                        color: '#00D9FF',
-                      }}>
-                        {index + 1}
+                    <div key={index}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '13px' }}>
+                        <span>
+                          {icon} {os}
+                        </span>
+                        <span style={{ color: '#00D9FF', fontWeight: '600' }}>
+                          {count} ({percentage}%)
+                        </span>
                       </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                          <span style={{ fontSize: '14px' }}>{location}</span>
-                          <span style={{ fontSize: '14px', color: '#FF00FF' }}>{count} scans ({percentage}%)</span>
-                        </div>
+                      <div style={{
+                        height: '8px',
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        borderRadius: '4px',
+                        overflow: 'hidden',
+                      }}>
                         <div style={{
-                          height: '6px',
-                          background: 'rgba(255, 255, 255, 0.1)',
-                          borderRadius: '3px',
-                          overflow: 'hidden',
-                        }}>
-                          <div style={{
-                            width: `${percentage}%`,
-                            height: '100%',
-                            background: 'linear-gradient(90deg, #00D9FF, #FF00FF)',
-                            borderRadius: '3px',
-                          }}></div>
-                        </div>
+                          width: `${barWidth}%`,
+                          height: '100%',
+                          background: index % 2 === 0 
+                            ? 'linear-gradient(90deg, #FF00FF, #00D9FF)' 
+                            : 'linear-gradient(90deg, #00D9FF, #FF00FF)',
+                          borderRadius: '4px',
+                          transition: 'width 0.3s ease',
+                        }}></div>
                       </div>
                     </div>
                   );
                 })}
               </div>
-              </div>
+            )}
+          </div>
+        </div>
 
-            {/* Recent Scans Table */}
-            <div style={{
-              background: 'rgba(0, 0, 0, 0.3)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              borderRadius: '12px',
-              padding: '20px',
-            }}>
-              <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '15px', color: '#FFFF00' }}>
-                📋 Recent Scan Activity
-              </h3>
+        {/* BOTTOM ROW: Top Countries (left) + Top Cities (right) */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '20px',
+          marginBottom: '25px',
+        }}>
+          {/* Top Countries Table */}
+          <div style={{
+            background: 'rgba(0, 0, 0, 0.3)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '12px',
+            padding: '20px',
+          }}>
+            <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '15px', color: '#00FF00' }}>
+              🌍 Scans by Top Countries
+            </h3>
+            {scansByCountry.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '30px', color: '#666', fontSize: '14px' }}>
+                No location data available
+              </div>
+            ) : (
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
-                      <th style={{ textAlign: 'left', padding: '10px', fontSize: '12px', color: '#aaa', fontWeight: '600' }}>Time</th>
-                      <th style={{ textAlign: 'left', padding: '10px', fontSize: '12px', color: '#aaa', fontWeight: '600' }}>Location</th>
-                      <th style={{ textAlign: 'left', padding: '10px', fontSize: '12px', color: '#aaa', fontWeight: '600' }}>Device</th>
-                      <th style={{ textAlign: 'left', padding: '10px', fontSize: '12px', color: '#aaa', fontWeight: '600' }}>OS/Browser</th>
+                      <th style={{ textAlign: 'left', padding: '8px 10px', fontSize: '11px', color: '#aaa', fontWeight: '600' }}>#</th>
+                      <th style={{ textAlign: 'left', padding: '8px 10px', fontSize: '11px', color: '#aaa', fontWeight: '600' }}>Country</th>
+                      <th style={{ textAlign: 'right', padding: '8px 10px', fontSize: '11px', color: '#aaa', fontWeight: '600' }}>Scans</th>
+                      <th style={{ textAlign: 'right', padding: '8px 10px', fontSize: '11px', color: '#aaa', fontWeight: '600' }}>%</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {scanData.slice(0, 5).map((scan) => {
-                      const date = new Date(scan.timestamp);
-                      const timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                      const dateString = date.toLocaleDateString();
-                      
+                    {scansByCountry.map(([country, count], index) => {
+                      const percentage = totalScans > 0 ? ((count / totalScans) * 100).toFixed(1) : 0;
                       return (
-                        <tr key={scan.id} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                          <td style={{ padding: '10px', fontSize: '12px' }}>
-                            <div>{dateString}</div>
-                            <div style={{ color: '#888', fontSize: '11px' }}>{timeString}</div>
-                          </td>
-                          <td style={{ padding: '10px', fontSize: '12px' }}>{scan.location}</td>
-                          <td style={{ padding: '10px', fontSize: '12px' }}>{scan.device}</td>
-                          <td style={{ padding: '10px', fontSize: '12px' }}>
-                            <div>{scan.os}</div>
-                            <div style={{ color: '#888', fontSize: '11px' }}>{scan.browser}</div>
-                          </td>
+                        <tr key={country} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                          <td style={{ padding: '8px 10px', fontSize: '12px', color: '#00D9FF', fontWeight: '700' }}>{index + 1}</td>
+                          <td style={{ padding: '8px 10px', fontSize: '12px' }}>{country}</td>
+                          <td style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'right', fontWeight: '600' }}>{count}</td>
+                          <td style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'right', color: '#00D9FF' }}>{percentage}%</td>
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
               </div>
-            </div>
+            )}
+          </div>
 
-            {/* Note about scan tracking */}
-            <div style={{
-              marginTop: '20px',
-              padding: '15px',
-              background: 'rgba(0, 217, 255, 0.1)',
-              border: '1px solid rgba(0, 217, 255, 0.3)',
-              borderRadius: '8px',
-              fontSize: '12px',
-              color: '#00D9FF',
-            }}>
-              <div style={{ fontWeight: '600', marginBottom: '5px' }}>ℹ️ How Scan Tracking Works:</div>
-              <div>
-                When someone scans your QR code:
-                <ul style={{ margin: '5px 0 0 20px', padding: 0 }}>
-                  <li>1. User scans QR code → Opens tracking URL (e.g., https://yourapp.com/track/abc123)</li>
-                  <li>2. Server records: timestamp, device info, location from IP, user agent</li>
-                  <li>3. Server instantly redirects to your destination URL</li>
-                  <li>4. User sees the intended content (no noticeable delay)</li>
-                  <li>5. Analytics data is stored for your Pro/Ultra plan</li>
-                </ul>
-                <div style={{ marginTop: '10px', fontSize: '11px', color: '#aaa' }}>
-                  Location data is estimated from IP address. Device detection uses user agent parsing.
-                </div>
+          {/* Top Cities Table */}
+          <div style={{
+            background: 'rgba(0, 0, 0, 0.3)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            borderRadius: '12px',
+            padding: '20px',
+          }}>
+            <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '15px', color: '#FFFF00' }}>
+              🏙️ Scans by Top Cities
+            </h3>
+            {scansByCity.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '30px', color: '#666', fontSize: '14px' }}>
+                No location data available
               </div>
-            </div>
-          </>
-        )}
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                      <th style={{ textAlign: 'left', padding: '8px 10px', fontSize: '11px', color: '#aaa', fontWeight: '600' }}>#</th>
+                      <th style={{ textAlign: 'left', padding: '8px 10px', fontSize: '11px', color: '#aaa', fontWeight: '600' }}>City</th>
+                      <th style={{ textAlign: 'right', padding: '8px 10px', fontSize: '11px', color: '#aaa', fontWeight: '600' }}>Scans</th>
+                      <th style={{ textAlign: 'right', padding: '8px 10px', fontSize: '11px', color: '#aaa', fontWeight: '600' }}>%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {scansByCity.map(([city, count], index) => {
+                      const percentage = totalScans > 0 ? ((count / totalScans) * 100).toFixed(1) : 0;
+                      return (
+                        <tr key={city} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                          <td style={{ padding: '8px 10px', fontSize: '12px', color: '#FF00FF', fontWeight: '700' }}>{index + 1}</td>
+                          <td style={{ padding: '8px 10px', fontSize: '12px' }}>{city}</td>
+                          <td style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'right', fontWeight: '600' }}>{count}</td>
+                          <td style={{ padding: '8px 10px', fontSize: '12px', textAlign: 'right', color: '#FF00FF' }}>{percentage}%</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

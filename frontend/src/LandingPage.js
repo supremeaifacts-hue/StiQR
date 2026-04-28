@@ -94,112 +94,75 @@ const LandingPage = ({ onViewDashboard, onViewPricing, qrCodeToEdit, onClearQrCo
           <EditorPage embedded qrCodeToEdit={qrCodeToEdit} onClearQrCodeToEdit={onClearQrCodeToEdit} />
         </div>
 
-        {/* Frame #2 Showcase */}
+        {/* Benefits Section */}
         <div style={{
-          marginTop: '60px',
+          marginTop: '80px',
           display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '20px',
+          justifyContent: 'flex-end',
+          width: '100%',
+          maxWidth: '1200px',
+          padding: '0 40px',
+          boxSizing: 'border-box',
         }}>
-          <h2 style={{
-            fontSize: '32px',
-            fontWeight: '700',
-            color: '#ffffff',
-            margin: '0',
-            textAlign: 'center',
-          }}>
-            Professional QR Frame Examples
-          </h2>
-          <p style={{
-            fontSize: '16px',
-            color: '#a0a0a0',
-            maxWidth: '600px',
-            textAlign: 'center',
-            margin: '0 0 20px 0',
-            lineHeight: '1.5',
-          }}>
-            Choose from beautifully designed frames to make your QR codes stand out
-          </p>
-          
           <div style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            justifyContent: 'center',
-            gap: '30px',
-            maxWidth: '800px',
+            textAlign: 'right',
+            maxWidth: '700px',
           }}>
-            {/* Frame #2 Example */}
+            <h2 style={{
+              fontSize: '42px',
+              fontWeight: '900',
+              color: '#ffffff',
+              margin: '0 0 20px 0',
+              letterSpacing: '-1px',
+            }}>
+              Benefits of <span style={{ color: '#00D9FF' }}>stiQR.top</span>
+            </h2>
+            <p style={{
+              fontSize: '18px',
+              color: '#a0a0a0',
+              lineHeight: '1.7',
+              margin: '0 0 30px 0',
+            }}>
+              By using stiQR.top you will be able attract people to your business, making them easily choose you over the competitors.
+            </p>
+            <p style={{
+              fontSize: '16px',
+              color: '#a0a0a0',
+              lineHeight: '1.7',
+              margin: '0 0 30px 0',
+            }}>
+              <strong style={{ color: '#FF00FF' }}>Why?</strong><br />
+              Because stiQR allows you to add stickers or logos over your QR codes, making it different from the usual bland black and white QR code. Do you want to get noticed instantly? Change the colors, add frames and place your logo over the QR code.
+            </p>
             <div style={{
               display: 'flex',
               flexDirection: 'column',
-              alignItems: 'center',
-              gap: '15px',
+              alignItems: 'flex-end',
+              gap: '12px',
             }}>
-              <div style={{
-                width: '200px',
-                backgroundColor: '#000000',
-                borderRadius: '14px',
-                padding: '14px 14px 10px 14px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '8px',
-                boxSizing: 'border-box',
-              }}>
-                {/* QR Code Tile */}
-                <div style={{
-                  width: '172px',
-                  height: '172px',
-                  backgroundColor: '#ffffff',
-                  borderRadius: '4px',
+              {[
+                'Dynamic QR Codes',
+                'Static QR Codes',
+                'QR Code Statistics',
+                'Customized Colors & Shapes for QR Codes',
+                'No Coding Required',
+              ].map((item, index) => (
+                <div key={index} style={{
                   display: 'flex',
-                  justifyContent: 'center',
                   alignItems: 'center',
-                  overflow: 'hidden',
-                }}>
-                  {/* Sample QR pattern */}
-                  <div style={{
-                    width: '100%',
-                    height: '100%',
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(7, 1fr)',
-                    gridTemplateRows: 'repeat(7, 1fr)',
-                    gap: '2px',
-                    padding: '10px',
-                  }}>
-                    {Array.from({ length: 49 }).map((_, i) => (
-                      <div key={i} style={{
-                        backgroundColor: Math.random() > 0.5 ? '#000000' : 'transparent',
-                        borderRadius: '1px',
-                      }} />
-                    ))}
-                  </div>
-                </div>
-                
-                {/* Label */}
-                <div style={{
+                  gap: '10px',
+                  fontSize: '16px',
                   color: '#ffffff',
-                  fontSize: '11px',
-                  fontWeight: '700',
-                  letterSpacing: '2px',
-                  textTransform: 'uppercase',
-                  textAlign: 'center',
-                  paddingBottom: '2px',
-                  userSelect: 'none',
+                  fontWeight: '500',
                 }}>
-                  SCAN ME
+                  <span>{item}</span>
+                  <span style={{
+                    color: '#00D9FF',
+                    fontSize: '20px',
+                    fontWeight: '700',
+                  }}>✓</span>
                 </div>
-              </div>
-              
-              <div style={{
-                fontSize: '14px',
-                color: '#00D9FF',
-                fontWeight: '600',
-                textAlign: 'center',
-              }}>
-                Frame #2 - Professional Black
-              </div>
+              ))}
             </div>
           </div>
         </div>
