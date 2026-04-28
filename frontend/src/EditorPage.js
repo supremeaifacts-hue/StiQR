@@ -55,8 +55,8 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
         // For local development, use localhost (for testing on same machine)
         backendUrl = 'http://localhost:3000';
       } else {
-        // For production or network access, use current hostname
-        backendUrl = `http://${window.location.hostname}:3000`;
+        // For production, use the custom domain with HTTPS
+        backendUrl = 'https://www.stiqr.top';
       }
     }
     

@@ -1,5 +1,7 @@
 // File: /functions/api/[[default]].js
 // This handles ALL requests to /track/*
+console.log('✅ Edge Function executed for path:', context.request.url);
+return new Response('Function is working', { status: 200 });
 
 export default function onRequest(context) {
   // 1. Get the full URL and log it for debugging
