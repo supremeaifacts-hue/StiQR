@@ -2058,8 +2058,10 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        justifyContent: 'center',
-        padding: '60px 40px',
+        justifyContent: 'flex-start',
+        padding: '30px 40px',
+        alignSelf: 'flex-start',
+        height: 'fit-content',
       }}>
         <div style={{
           padding: '50px',
