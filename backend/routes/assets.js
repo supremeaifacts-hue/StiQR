@@ -156,21 +156,37 @@ router.post('/assets/qrcodes', isAuthenticated, async (req, res) => {
   try {
     const { data, imageData, name, qrCodeId } = req.body;
     
+    console.log('=== SAVE QR CODE REQUEST RECEIVED ===');
+    console.log('Request body keys:', Object.keys(req.body));
+    console.log('data (destination):', data ? data.substring(0, 100) : 'MISSING');
+    console.log('imageData length:', imageData ? imageData.length : 'MISSING');
+    console.log('name:', name || 'not provided');
+    console.log('qrCodeId:', qrCodeId || 'not provided');
+    console.log('User ID:', req.user ? req.user._id : 'NO USER ON REQUEST');
+    console.log('User email:', req.user ? req.user.email : 'N/A');
+    
     if (!data || !imageData) {
+      console.log('❌ Missing required fields: data=' + !!data + ', imageData=' + !!imageData);
       return res.status(400).json({ error: 'QR code data and image data are required' });
     }
 
     const user = await User.findById(req.user._id);
     if (!user) {
+      console.log('❌ User not found in database for ID:', req.user._id);
       return res.status(404).json({ error: 'User not found' });
     }
+    
+    console.log('✅ User found:', user.email);
+    console.log('Current QR codes count before save:', user.qrCodes ? user.qrCodes.length : 0);
 
     // Use provided ID or generate a new one
     const qrId = qrCodeId || generateId();
+    console.log('Using QR code ID:', qrId);
     
     // Generate tracking URL
     const trackingUrl = `${req.protocol}://${req.get('host')}/track/${qrId}`;
     const scanUrl = trackingUrl; // For backward compatibility
+    console.log('Tracking URL:', trackingUrl);
     
     const newQrCode = {
       id: qrId,
@@ -188,6 +204,10 @@ router.post('/assets/qrcodes', isAuthenticated, async (req, res) => {
     user.stats.qrCodesCreated = (user.stats.qrCodesCreated || 0) + 1;
     
     await user.save();
+    console.log('✅ QR code saved successfully!');
+    console.log('New QR codes count after save:', user.qrCodes.length);
+    console.log('Last QR code ID:', user.qrCodes[user.qrCodes.length - 1].id);
+    console.log('Last QR code data:', user.qrCodes[user.qrCodes.length - 1].data);
 
     // Return both the tracking URL and the original data
     res.json({
@@ -200,8 +220,9 @@ router.post('/assets/qrcodes', isAuthenticated, async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Error saving QR code:', error);
-    res.status(500).json({ error: 'Server error' });
+    console.error('❌ Error saving QR code:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ error: 'Server error', message: error.message });
   }
 });
 

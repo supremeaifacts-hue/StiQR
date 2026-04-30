@@ -2093,6 +2093,13 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
           </button>
           <button
             onClick={async () => {
+              console.log('💾 Save to My QR codes button clicked');
+              console.log('isAuthenticated:', isAuthenticated);
+              console.log('qrData:', qrData?.substring(0, 100));
+              console.log('qrCodeId:', qrCodeId);
+              console.log('selectedFrame:', selectedFrame);
+              console.log('framePhrase:', framePhrase);
+              
               if (!isAuthenticated) {
                 alert('Please login to save QR codes to your collection');
                 return;
