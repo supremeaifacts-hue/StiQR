@@ -1,11 +1,14 @@
 // File: /functions/api/[[default]].js
-// This handles ALL requests to the EdgeOne Pages function route.
-// It proxies API requests (/api/*, /auth/*) to the backend server,
-// handles QR code tracking (/track/*), and lets EdgeOne serve
-// the static site for all other paths.
+// This handles ALL requests to the /api/* and /auth/* routes.
+// It proxies these requests to the backend server.
+// QR code tracking (/track/*) is handled by the root functions/[[default]].js
 
-// The backend server URL (your Express server running on port 3000)
-const BACKEND_URL = 'http://localhost:3000';
+// The backend server URL - set this as an environment variable in the EdgeOne console
+// For production: https://www.stiqr.top (or your backend server URL)
+// For local development: http://localhost:3000
+const BACKEND_URL = typeof process !== 'undefined' && process.env.BACKEND_URL 
+  ? process.env.BACKEND_URL 
+  : 'https://www.stiqr.top';
 
 export default async function onRequest(context) {
   // 1. Get the full URL and log it for debugging
@@ -58,30 +61,7 @@ export default async function onRequest(context) {
     }
   }
   
-  // 4. Handle tracking requests - paths starting with /track/
-  if (firstSegment === 'track' && pathParts[1]) {
-    const qrCodeId = pathParts[1];
-    console.log('🔍 Looking up QR code ID:', qrCodeId);
-    
-    // Proxy to backend tracking endpoint
-    try {
-      const backendUrl = `${BACKEND_URL}/track/${qrCodeId}`;
-      console.log('   Backend URL:', backendUrl);
-      
-      const response = await fetch(backendUrl, {
-        method: 'GET',
-        headers: context.request.headers,
-      });
-      
-      // Return the backend response (which will be a redirect)
-      return response;
-    } catch (error) {
-      console.error('❌ Tracking proxy error:', error.message);
-      return new Response('Tracking service unavailable', { status: 502 });
-    }
-  }
-  
-  // 5. Handle OPTIONS preflight requests for CORS
+  // 4. Handle OPTIONS preflight requests for CORS
   if (context.request.method === 'OPTIONS') {
     return new Response(null, {
       status: 204,
@@ -95,8 +75,7 @@ export default async function onRequest(context) {
     });
   }
   
-  // 6. For ALL other paths (root /, /dashboard, /login, static assets, etc.),
-  //    return undefined so EdgeOne falls through to serve the static site.
-  console.log('⏩ Not an API or tracking path, letting EdgeOne serve static site:', url.pathname);
+  // 5. For ALL other paths, return undefined so EdgeOne falls through to serve the static site.
+  console.log('⏩ Not an API or auth path, letting EdgeOne serve static site:', url.pathname);
   return undefined;
 }
