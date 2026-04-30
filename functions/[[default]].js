@@ -1,15 +1,23 @@
 // /functions/[[default]].js
 // This catches all requests to the domain
-// EdgeOne Pages runs in a V8 isolate (Service Worker-like environment).
-// It supports fetch() natively but does NOT support Node.js modules like mongoose.
-// Therefore, we use fetch() to call the backend REST API instead of connecting to MongoDB directly.
+// EdgeOne Pages runs in a Node.js 18 runtime (see runtime.txt).
+// It supports fetch() natively.
+// We use fetch() to call the backend REST API instead of connecting to MongoDB directly.
 
-// The backend server URL - set this as an environment variable in the EdgeOne console
-// For production: https://www.stiqr.top (or your backend server URL)
-// For local development: http://localhost:3000
-const BACKEND_URL = typeof process !== 'undefined' && process.env.BACKEND_URL 
-  ? process.env.BACKEND_URL 
-  : 'https://www.stiqr.top';
+// ============================================================
+// BACKEND_URL - Hardcoded for now
+// EdgeOne Pages does not expose process.env or context.env reliably.
+// Once environment variables are properly configured in the EdgeOne console,
+// replace this hardcoded value with the dynamic lookup below.
+// ============================================================
+const BACKEND_URL = 'https://www.stiqr.top'; // Hardcoded for now
+
+// When EdgeOne env vars are working, uncomment this:
+// function getBackendUrl(context) {
+//   if (context && context.env && context.env.BACKEND_URL) return context.env.BACKEND_URL;
+//   if (typeof process !== 'undefined' && process.env && process.env.BACKEND_URL) return process.env.BACKEND_URL;
+//   return 'https://www.stiqr.top';
+// }
 
 export async function onRequest(context) {
   // ============================================================
@@ -33,7 +41,8 @@ export async function onRequest(context) {
   console.log(`   CF-IP:         ${cfIp}`);
   console.log(`   X-Forwarded-For: ${xff}`);
   console.log(`   BACKEND_URL:   ${BACKEND_URL}`);
-  console.log(`   Environment:   ${typeof process !== 'undefined' && process.env.BACKEND_URL ? 'configured' : 'default'}`);
+  console.log(`   context.env:   ${context && context.env ? JSON.stringify(Object.keys(context.env)) : 'not available'}`);
+  console.log(`   process.env:   ${typeof process !== 'undefined' && process.env ? JSON.stringify(Object.keys(process.env)) : 'not available'}`);
   console.log('========================================');
 
   // ============================================================
