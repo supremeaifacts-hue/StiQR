@@ -36,6 +36,38 @@ export async function onRequest(context) {
   console.log(`   Environment:   ${typeof process !== 'undefined' && process.env.BACKEND_URL ? 'configured' : 'default'}`);
   console.log('========================================');
 
+  // ============================================================
+  // TEST ENDPOINT: /test-env
+  // Visit https://yourdomain.com/test-env to verify environment variables
+  // ============================================================
+  if (path === '/test-env') {
+    console.log('🧪 TEST-ENV ENDPOINT HIT');
+    console.log(`   BACKEND_URL:   ${BACKEND_URL}`);
+    console.log(`   process.env:   ${typeof process !== 'undefined' ? JSON.stringify(Object.keys(process.env)) : 'process is undefined'}`);
+    console.log('========================================\n');
+
+    const envStatus = {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      environment: {
+        BACKEND_URL: BACKEND_URL,
+        configured: typeof process !== 'undefined' && process.env.BACKEND_URL ? true : false,
+        process_available: typeof process !== 'undefined',
+        env_keys: typeof process !== 'undefined' ? Object.keys(process.env) : []
+      },
+      note: 'MONGODB_URI and DB_NAME are NOT needed in EdgeOne. The function uses fetch() to call the backend API, not mongoose directly.'
+    };
+
+    return new Response(JSON.stringify(envStatus, null, 2), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'no-store'
+      }
+    });
+  }
+
   // Handle /track/:id routes
   if (path.startsWith('/track/')) {
     const id = path.split('/')[2];
