@@ -37,31 +37,21 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
   
   // Generate tracking URL
   const getTrackingUrl = () => {
-    // For QR codes to be scannable from phones on the network,
-    // we need to use the server's network IP, not localhost.
-    // In development, you can set VITE_BACKEND_URL environment variable.
-    // Example: VITE_BACKEND_URL=http://192.168.1.104:3000
+    // Determine the environment based on the current hostname.
+    // This is the most reliable way to know if we're in development or production.
+    const hostname = window.location.hostname;
+    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+    
     let backendUrl;
     
-    // Check for environment variable first
-    if (import.meta.env.VITE_BACKEND_URL) {
-      backendUrl = import.meta.env.VITE_BACKEND_URL;
+    if (isLocalhost) {
+      // For local development, use localhost (for testing on same machine)
+      backendUrl = 'http://localhost:3000';
     } else {
-      // Fallback logic for development
-      const isLocalhost = window.location.hostname === 'localhost' || 
-                         window.location.hostname === '127.0.0.1';
-      
-      if (isLocalhost) {
-        // For local development, use localhost (for testing on same machine)
-        backendUrl = 'http://localhost:3000';
-      } else {
-        // For production, use the custom domain with HTTPS
-        backendUrl = 'https://www.stiqr.top';
-      }
+      // For production (EdgeOne), use the custom domain with HTTPS
+      // No port needed — EdgeOne handles HTTPS on port 443
+      backendUrl = 'https://www.stiqr.top';
     }
-    
-    // Remove trailing slash if present
-    backendUrl = backendUrl.replace(/\/$/, '');
     
     return `${backendUrl}/track/${qrCodeId}`;
   };
