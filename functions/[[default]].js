@@ -104,7 +104,7 @@ export async function onRequest(context) {
       // ============================================================
       // DEBUG LOG 3: Backend API Call
       // ============================================================
-      const apiUrl = `${BACKEND_URL}/api/assets/qrcodes/${encodeURIComponent(id)}`;
+      const apiUrl = `${BACKEND_URL}/track/${encodeURIComponent(id)}`;
       console.log('🌐 ATTEMPTING BACKEND API CALL');
       console.log(`   API URL:       ${apiUrl}`);
       console.log(`   Method:        GET`);
@@ -176,11 +176,11 @@ export async function onRequest(context) {
         );
       }
       
-      console.log(`   success:       ${data.success}`);
-      console.log(`   has qrCode:    ${data.qrCode ? 'yes' : 'no'}`);
+      console.log(`   has destination: ${data.destination ? 'yes' : 'no'}`);
+      console.log(`   has error:       ${data.error ? 'yes : ' + data.error : 'no'}`);
 
-      if (!data.success || !data.qrCode) {
-        console.error(`❌ FAILED: Invalid response structure`);
+      if (!data.destination) {
+        console.error(`❌ FAILED: Response has no destination field`);
         console.error(`   Full response: ${JSON.stringify(data)}`);
         console.log('========================================\n');
         return renderErrorPage(404, 'QR Code Data Not Found',
@@ -189,22 +189,17 @@ export async function onRequest(context) {
         );
       }
 
-      const qrCode = data.qrCode;
-      
       // ============================================================
       // DEBUG LOG 6: QR Code Data Found
       // ============================================================
       console.log('✅ QR CODE DATA FOUND');
-      console.log(`   ID:            ${qrCode.id}`);
-      console.log(`   Name:          ${qrCode.name || '(no name)'}`);
-      console.log(`   Destination:   ${qrCode.data || '(empty!)'}`);
-      console.log(`   Scans:         ${qrCode.scans || 0}`);
-      console.log(`   Created:       ${qrCode.createdAt || 'unknown'}`);
-      console.log(`   Last scanned:  ${qrCode.lastScanned || 'never'}`);
+      console.log(`   ID:            ${data.id || id}`);
+      console.log(`   Name:          ${data.name || '(no name)'}`);
+      console.log(`   Destination:   ${data.destination || '(empty!)'}`);
       console.log('========================================\n');
 
       // Get the destination URL
-      let destinationUrl = qrCode.data;
+      let destinationUrl = data.destination;
 
       // ============================================================
       // DEBUG LOG 7: Destination URL Validation

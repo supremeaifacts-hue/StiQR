@@ -154,73 +154,146 @@ app.post('/api/webhook',
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Root-level tracking endpoint (for QR codes) - MUST be BEFORE passport middleware
+// ============================================================
+// TRACKING ENDPOINT: /track/:id
+// Called by the EdgeOne function to look up QR code destination.
+// Returns JSON with the destination URL.
+// The EdgeOne function handles the final redirect to the user's browser.
+// MUST be BEFORE passport middleware (no auth required).
+// ============================================================
 app.get('/track/:id', async (req, res) => {
+  const startTime = Date.now();
   try {
     const { id } = req.params;
     
-    console.log(`🔍 Tracking endpoint called for ID: ${id}`);
+    console.log('========================================');
+    console.log('🔍 TRACKING ENDPOINT CALLED');
+    console.log('========================================');
+    console.log(`   ID:            ${id}`);
+    console.log(`   Timestamp:     ${new Date().toISOString()}`);
+    console.log(`   IP:            ${req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress}`);
+    console.log(`   User-Agent:    ${req.headers['user-agent'] || 'unknown'}`);
+    console.log(`   Referer:       ${req.headers['referer'] || 'none'}`);
+    console.log('========================================');
     
-    // Import required modules
+    // Import User model
     const User = require('./models/User');
     
-    // Find user by QR code ID
+    // ============================================================
+    // STEP 1: Find user by QR code ID
+    // ============================================================
+    console.log('📡 STEP 1: Searching for QR code in database...');
+    console.log(`   Query: User.findOne({ 'qrCodes.id': '${id}' })`);
+    
     const user = await User.findOne({ 'qrCodes.id': id });
+    
     if (!user) {
-      console.log(`❌ QR code not found for ID: ${id}`);
-      return res.status(404).send('QR code not found');
+      console.error(`❌ STEP 1 FAILED: No user found containing QR code with ID: ${id}`);
+      console.log('========================================\n');
+      return res.status(404).json({ 
+        success: false, 
+        error: 'QR code not found',
+        id: id,
+        message: `No QR code found with ID "${id}"`
+      });
     }
     
-    // Find the specific QR code
+    console.log(`✅ STEP 1 PASSED: Found user ${user.email} (ID: ${user._id})`);
+    console.log(`   User has ${user.qrCodes ? user.qrCodes.length : 0} QR codes`);
+    
+    // ============================================================
+    // STEP 2: Find the specific QR code in the user's array
+    // ============================================================
+    console.log('📡 STEP 2: Finding specific QR code in user array...');
+    
     const qrCode = user.qrCodes.find(qr => qr.id === id);
+    
     if (!qrCode) {
-      console.log(`❌ QR code data not found for ID: ${id}`);
-      return res.status(404).send('QR code data not found');
+      console.error(`❌ STEP 2 FAILED: QR code with ID ${id} not found in user's qrCodes array`);
+      console.log('========================================\n');
+      return res.status(404).json({ 
+        success: false, 
+        error: 'QR code data not found',
+        id: id,
+        message: `QR code with ID "${id}" exists but has no data`
+      });
     }
     
-    console.log(`📊 Found QR code:`, {
-      id: qrCode.id,
-      data: qrCode.data,
-      scans: qrCode.scans || 0
-    });
+    console.log(`✅ STEP 2 PASSED: QR code found`);
+    console.log(`   Name:          ${qrCode.name || '(no name)'}`);
+    console.log(`   Destination:   ${qrCode.data || '(EMPTY!)'}`);
+    console.log(`   Scan count:    ${qrCode.scans || 0}`);
+    console.log(`   Created:       ${qrCode.createdAt || 'unknown'}`);
+    console.log(`   Last scanned:  ${qrCode.lastScanned || 'never'}`);
     
-    // Increment scan count
+    // ============================================================
+    // STEP 3: Validate destination URL
+    // ============================================================
+    console.log('📡 STEP 3: Validating destination URL...');
+    
+    if (!qrCode.data || qrCode.data.trim() === '') {
+      console.error(`❌ STEP 3 FAILED: QR code has empty destination data`);
+      console.log('========================================\n');
+      return res.status(400).json({ 
+        success: false, 
+        error: 'QR code has no destination',
+        id: id,
+        message: 'This QR code does not have a destination URL configured'
+      });
+    }
+    
+    console.log(`✅ STEP 3 PASSED: Destination URL is valid`);
+    console.log(`   Raw data:      ${qrCode.data}`);
+    
+    // ============================================================
+    // STEP 4: Increment scan count in background (don't await)
+    // ============================================================
+    console.log('📡 STEP 4: Incrementing scan count (background)...');
+    
     qrCode.scans = (qrCode.scans || 0) + 1;
     qrCode.lastScanned = new Date();
     
-    // Add scan tracking data
-    const scanData = {
-      timestamp: new Date(),
-      ipAddress: req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress,
-      userAgent: req.headers['user-agent'],
-      referer: req.headers['referer']
-    };
+    // Save asynchronously - don't block the response
+    user.save().then(() => {
+      console.log(`✅ STEP 4 COMPLETE: Scan count updated to ${qrCode.scans}`);
+    }).catch(err => {
+      console.error(`⚠️ STEP 4 FAILED: Could not save scan count: ${err.message}`);
+    });
     
-    if (!qrCode.scanHistory) {
-      qrCode.scanHistory = [];
-    }
-    qrCode.scanHistory.push(scanData);
+    // ============================================================
+    // STEP 5: Return destination URL as JSON
+    // ============================================================
+    const elapsed = Date.now() - startTime;
+    console.log('========================================');
+    console.log('✅ TRACKING ENDPOINT SUCCESS');
+    console.log(`   Total time:    ${elapsed}ms`);
+    console.log(`   Destination:   ${qrCode.data}`);
+    console.log(`   Returning:     { "destination": "${qrCode.data}" }`);
+    console.log('========================================\n');
     
-    // Save the user
-    await user.save();
+    // Return JSON with destination URL
+    // The EdgeOne function will handle the 302 redirect to the user's browser
+    res.json({ 
+      destination: qrCode.data,
+      id: qrCode.id,
+      name: qrCode.name
+    });
     
-    console.log(`✅ Scan recorded. New scan count: ${qrCode.scans}`);
-    
-    // Get the destination URL
-    let destinationUrl = qrCode.data;
-    
-    // Ensure URL has protocol
-    if (!destinationUrl.startsWith('http://') && !destinationUrl.startsWith('https://')) {
-      destinationUrl = 'https://' + destinationUrl;
-    }
-    
-    console.log(`🔗 Redirecting to: ${destinationUrl}`);
-    
-    // Redirect to the destination
-    res.redirect(302, destinationUrl);
   } catch (error) {
-    console.error('❌ Error in tracking endpoint:', error);
-    res.status(500).send('Internal server error');
+    const elapsed = Date.now() - startTime;
+    console.error('========================================');
+    console.error('💥 TRACKING ENDPOINT ERROR');
+    console.error(`   Time elapsed:  ${elapsed}ms`);
+    console.error(`   Error name:    ${error.name || 'unknown'}`);
+    console.error(`   Error message: ${error.message || 'unknown'}`);
+    console.error(`   Error stack:   ${error.stack || 'no stack trace'}`);
+    console.error('========================================\n');
+    
+    res.status(500).json({ 
+      success: false, 
+      error: 'Internal server error',
+      message: error.message
+    });
   }
 });
 
