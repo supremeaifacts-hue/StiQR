@@ -1,88 +1,82 @@
-// /functions/api/[[default]].js
-import { MongoClient } from 'mongodb';
+// File: /functions/api/[[default]].js
+// This handles ALL requests to the /api/* and /auth/* routes.
+// It proxies these requests to the backend server.
+// QR code tracking (/track/*) is handled by the root functions/[[default]].js
 
-// Cache the MongoDB client across function invocations
-let cachedClient = null;
-let cachedDb = null;
-
-async function getDb() {
-  if (cachedDb) return cachedDb;
-
-  const uri = process.env.MONGODB_URI;
-  if (!uri) {
-    throw new Error('MONGODB_URI environment variable is not set');
-  }
-
-  // Use a global variable to preserve the client across warm starts
-  if (!cachedClient) {
-    cachedClient = new MongoClient(uri, {
-      maxPoolSize: 1,
-      minPoolSize: 1,
-    });
-    await cachedClient.connect();
-  }
-
-  cachedDb = cachedClient.db();
-  return cachedDb;
-}
+// ============================================================
+// BACKEND_URL - Hardcoded for now
+// EdgeOne Pages does not expose process.env or context.env reliably.
+// Once environment variables are properly configured in the EdgeOne console,
+// replace this hardcoded value with the dynamic lookup below.
+// ============================================================
+const BACKEND_URL = 'https://www.stiqr.top'; // Hardcoded for now
 
 export default async function onRequest(context) {
+  // 1. Get the full URL and log it for debugging
   const url = new URL(context.request.url);
-  const pathParts = url.pathname.split('/').filter(Boolean);
-
-  // Handle the test endpoint for troubleshooting
-  if (pathParts[0] === 'test-env') {
-    return new Response(
-      JSON.stringify({
-        status: 'ok',
-        timestamp: new Date().toISOString(),
-        environment: {
-          BACKEND_URL: 'hardcoded',
-          configured: true,
-          process_available: true,
-          has_mongo_uri: !!process.env.MONGODB_URI,
-        },
-        note: 'Direct database mode',
-      }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
-  }
-
-  // Handle the tracking redirect
-  if (pathParts[0] === 'track' && pathParts[1]) {
-    const qrCodeId = pathParts[1];
-    console.log(`🔍 Looking up QR code ID: ${qrCodeId}`);
-
+  console.log('📥 API Proxy request received:', url.pathname);
+  
+  // 2. Extract the path parts
+  const pathParts = url.pathname.split('/').filter(part => part.length > 0);
+  const firstSegment = pathParts[0];
+  
+  // 3. Handle API requests - proxy to backend server
+  if (firstSegment === 'api' || firstSegment === 'auth') {
+    console.log('🔄 Proxying API request to backend:', url.pathname);
+    
     try {
-      const db = await getDb();
-      const collection = db.collection('qrcodes'); // Adjust collection name to match your database
-
-      const qrCode = await collection.findOne({ id: qrCodeId });
-
-      if (!qrCode) {
-        console.log(`❌ QR code not found: ${qrCodeId}`);
-        return new Response('QR Code Not Found', { status: 404 });
-      }
-
-      const destination = qrCode.data;
-      if (!destination) {
-        console.log(`⚠️ QR code has no destination: ${qrCodeId}`);
-        return new Response('QR Code Has No Destination', { status: 400 });
-      }
-
-      // Increment scan count asynchronously (don't await)
-      collection.updateOne({ id: qrCodeId }, { $inc: { scan_count: 1 } }).catch(err => {
-        console.error('Failed to increment scan count:', err);
+      // Build the backend URL
+      const backendUrl = `${BACKEND_URL}${url.pathname}${url.search}`;
+      console.log('   Backend URL:', backendUrl);
+      
+      // Forward the request to the backend
+      const response = await fetch(backendUrl, {
+        method: context.request.method,
+        headers: context.request.headers,
+        body: context.request.method !== 'GET' && context.request.method !== 'HEAD' 
+          ? context.request.body 
+          : undefined,
       });
-
-      console.log(`✅ Redirecting ${qrCodeId} to: ${destination}`);
-      return Response.redirect(destination, 302);
+      
+      // Return the backend response with CORS headers
+      const responseHeaders = new Headers(response.headers);
+      responseHeaders.set('Access-Control-Allow-Origin', '*');
+      responseHeaders.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      responseHeaders.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      responseHeaders.set('Access-Control-Allow-Credentials', 'true');
+      
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: responseHeaders,
+      });
     } catch (error) {
-      console.error('❌ Error in tracking function:', error);
-      return new Response('Internal Server Error', { status: 500 });
+      console.error('❌ Backend proxy error:', error.message);
+      return new Response(JSON.stringify({ 
+        error: 'Backend server unavailable',
+        message: error.message 
+      }), {
+        status: 502,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
   }
-
-  // For all other paths, you could optionally serve your main app or return 404
-  return new Response('Not Found', { status: 404 });
+  
+  // 4. Handle OPTIONS preflight requests for CORS
+  if (context.request.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Credentials': 'true',
+        'Access-Control-Max-Age': '86400',
+      },
+    });
+  }
+  
+  // 5. For ALL other paths, return undefined so EdgeOne falls through to serve the static site.
+  console.log('⏩ Not an API or auth path, letting EdgeOne serve static site:', url.pathname);
+  return undefined;
 }
