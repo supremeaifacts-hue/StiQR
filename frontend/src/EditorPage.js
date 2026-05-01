@@ -552,21 +552,14 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
 
   const handleDownload = async () => {
     if (canvasRef.current && qrData) {
-      // Generate a new QR code ID for this download
-      const newQrCodeId = generateId();
-      setQrCodeId(newQrCodeId);
+      // Generate a unique ID for this QR code
+      const qrCodeId = Date.now().toString(36) + Math.random().toString(36).substr(2);
+      setQrCodeId(qrCodeId);
       
-      // ============================================================
-      // Save QR code data to MongoDB via backend API
-      // This ensures the EdgeOne function can look up the destination
-      // when someone scans the QR code.
-      // ============================================================
-      const destinationUrl = qrData; // This is what the user typed (e.g., "google.com")
+      // The destination URL the user entered
+      const destinationUrl = qrData; // This variable holds what the user typed (e.g., "google.com")
       
-      console.log('📡 Saving QR code to database...');
-      console.log('   POST https://www.stiqr.top/api/qrcodes');
-      console.log('   Body:', JSON.stringify({ id: newQrCodeId, data: destinationUrl }));
-      
+      // Send the data to your backend
       try {
         const response = await fetch('https://www.stiqr.top/api/qrcodes', {
           method: 'POST',
@@ -574,21 +567,18 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            id: newQrCodeId,
+            id: qrCodeId,
             data: destinationUrl,
           }),
         });
         
         if (!response.ok) {
-          console.error('❌ Failed to save QR code to database. Status:', response.status, response.statusText);
-          const errorText = await response.text();
-          console.error('   Error body:', errorText);
+          console.error('Failed to save QR code to database');
         } else {
-          const result = await response.json();
-          console.log('✅ QR code saved successfully to database:', result);
+          console.log('QR code saved successfully');
         }
       } catch (error) {
-        console.error('❌ Error saving QR code to database:', error);
+        console.error('Error saving QR code:', error);
       }
       
       // Use tracking URL for QR code generation
@@ -633,7 +623,7 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
           const imageData = trackingCanvas.toDataURL('image/png');
           
           // Save QR code to backend with tracking URL
-          savedQrCode = await saveQrCode(qrData, imageData, `QR Code ${new Date().toLocaleDateString()}`, newQrCodeId);
+          savedQrCode = await saveQrCode(qrData, imageData, `QR Code ${new Date().toLocaleDateString()}`, qrCodeId);
           console.log('QR code saved to user account:', savedQrCode);
           
           // Note: The backend should use the same qrCodeId we generated
