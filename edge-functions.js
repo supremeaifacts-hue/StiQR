@@ -1,10 +1,65 @@
 // edge-functions.js
+import { MongoClient } from 'mongodb';
+
+let cachedClient = null;
+
+async function getMongoCollection() {
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    throw new Error('MONGODB_URI environment variable is not set');
+  }
+  
+  if (!cachedClient) {
+    cachedClient = new MongoClient(uri);
+    await cachedClient.connect();
+  }
+  
+  const db = cachedClient.db('stiqr');
+  return db.collection('qrcodes');
+}
+
 export default async function onRequest(context) {
   const url = new URL(context.request.url);
   const pathname = url.pathname;
+  const method = context.request.method;
 
   // ============================================================
-  // 1. Handle tracking requests: /track/:id
+  // 1. Handle POST /qrcodes — save QR code data to MongoDB
+  //    This is called by the frontend when a user creates a QR code.
+  //    No authentication required.
+  // ============================================================
+  if (pathname === '/qrcodes' && method === 'POST') {
+    try {
+      const body = await context.request.json();
+      const { id, data } = body;
+      
+      console.log(`📡 POST /qrcodes — saving QR code: id=${id}, data=${data?.substring(0, 100)}`);
+      
+      const collection = await getMongoCollection();
+      
+      await collection.updateOne(
+        { id: id },
+        { $set: { id: id, data: data, createdAt: new Date() } },
+        { upsert: true }
+      );
+      
+      console.log('✅ QR code saved to MongoDB successfully');
+      
+      return new Response(JSON.stringify({ success: true, id: id }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    } catch (error) {
+      console.error('❌ Error saving QR code to MongoDB:', error.message);
+      return new Response(JSON.stringify({ error: error.message }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+  }
+
+  // ============================================================
+  // 2. Handle tracking requests: /track/:id
   // ============================================================
   if (pathname.startsWith('/track/')) {
     const qrCodeId = pathname.split('/')[2];
@@ -14,7 +69,7 @@ export default async function onRequest(context) {
   }
 
   // ============================================================
-  // 2. Handle API/Auth requests: proxy to backend server
+  // 3. Handle API/Auth requests: proxy to backend server
   //    This is needed because the frontend sends API requests
   //    to www.stiqr.top/api/* which need to reach the backend.
   // ============================================================
