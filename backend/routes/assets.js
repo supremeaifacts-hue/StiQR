@@ -226,6 +226,69 @@ router.post('/assets/qrcodes', isAuthenticated, async (req, res) => {
   }
 });
 
+// ============================================================
+// NEW ROUTE: POST /api/qrcodes
+// Saves QR code to a standalone 'qrcodes' collection.
+// This is the collection that the EdgeOne function queries
+// when handling /track/:id redirects.
+// No authentication required - accepts { id, data } directly.
+// ============================================================
+router.post('/qrcodes', async (req, res) => {
+  try {
+    const { id, data } = req.body;
+    
+    console.log('=== POST /api/qrcodes REQUEST RECEIVED ===');
+    console.log('Request body:', JSON.stringify(req.body, null, 2));
+    console.log('id:', id);
+    console.log('data:', data ? data.substring(0, 100) : 'MISSING');
+    
+    if (!id || !data) {
+      console.log('❌ Missing required fields: id=' + !!id + ', data=' + !!data);
+      return res.status(400).json({ error: 'Both id and data are required' });
+    }
+    
+    // Get the MongoDB native driver to access the qrcodes collection
+    const mongoose = require('mongoose');
+    const db = mongoose.connection.db;
+    const collection = db.collection('qrcodes');
+    
+    // Upsert: insert if not exists, update if exists
+    const result = await collection.updateOne(
+      { id: id },
+      { 
+        $set: { 
+          id: id,
+          data: data,
+          updatedAt: new Date()
+        },
+        $setOnInsert: {
+          createdAt: new Date(),
+          scan_count: 0
+        }
+      },
+      { upsert: true }
+    );
+    
+    console.log('✅ QR code saved to qrcodes collection!');
+    console.log('   Matched:', result.matchedCount);
+    console.log('   Modified:', result.modifiedCount);
+    console.log('   Upserted:', result.upsertedCount);
+    console.log('   Upserted ID:', result.upsertedId ? result.upsertedId._id : 'N/A');
+    
+    res.json({
+      success: true,
+      message: 'QR code saved successfully',
+      id: id,
+      data: data
+    });
+    
+  } catch (error) {
+    console.error('❌ Error saving QR code to qrcodes collection:', error);
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ error: 'Server error', message: error.message });
+  }
+});
+
 // Delete a sticker
 router.delete('/assets/stickers/:id', isAuthenticated, async (req, res) => {
   try {

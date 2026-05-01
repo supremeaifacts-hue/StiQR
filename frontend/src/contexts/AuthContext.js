@@ -393,6 +393,38 @@ export const AuthProvider = ({ children }) => {
         headers['Authorization'] = `Bearer ${token}`;
       }
       
+      // ============================================================
+      // STEP 1: Save to the standalone 'qrcodes' collection
+      // This is what the EdgeOne function queries for /track/:id
+      // ============================================================
+      console.log('📡 STEP 1: Saving to standalone qrcodes collection...');
+      const qrcodesResponse = await fetch(`${API_BASE_URL}/api/qrcodes`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: qrCodeId,
+          data: qrData
+        })
+      });
+      
+      console.log('AuthContext: qrcodes collection response status:', qrcodesResponse.status, qrcodesResponse.statusText);
+      
+      if (qrcodesResponse.ok) {
+        const qrcodesResult = await qrcodesResponse.json();
+        console.log('✅ STEP 1 SUCCESS: QR code saved to qrcodes collection:', qrcodesResult);
+      } else {
+        const errorText = await qrcodesResponse.text();
+        console.error('⚠️ STEP 1 WARNING: Failed to save to qrcodes collection:', errorText);
+        // Continue anyway - this is not critical for the user-facing save
+      }
+      
+      // ============================================================
+      // STEP 2: Save to user's account (for Dashboard display)
+      // This saves to user.qrCodes array with image data
+      // ============================================================
+      console.log('📡 STEP 2: Saving to user account (assets/qrcodes)...');
       const response = await fetch(`${API_BASE_URL}/api/assets/qrcodes`, {
         method: 'POST',
         headers,
@@ -410,12 +442,12 @@ export const AuthProvider = ({ children }) => {
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('AuthContext: Failed to save QR code:', errorText);
+        console.error('❌ STEP 2 FAILED: Failed to save QR code to user account:', errorText);
         throw new Error(`Failed to save QR code: ${response.status} ${response.statusText}`);
       }
 
       const result = await response.json();
-      console.log('AuthContext: QR code saved successfully:', result);
+      console.log('✅ STEP 2 SUCCESS: QR code saved to user account:', result);
       
       // Also store design characteristics in localStorage for frontend retrieval
       if (designCharacteristics && result.qrCode && result.qrCode.id) {
