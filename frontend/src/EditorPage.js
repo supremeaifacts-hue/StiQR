@@ -561,7 +561,7 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
       
       // Send the data to your backend
       try {
-        const response = await fetch('https://www.stiqr.top/api/qrcodes', {
+        const response = await fetch('https://www.stiqr.top/qrcodes', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -2197,10 +2197,10 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
                 // This is what the EdgeOne function queries for /track/:id
                 // ============================================================
                 console.log('📡 STEP 1: Saving to standalone qrcodes collection...');
-                console.log('   POST https://www.stiqr.top/api/qrcodes');
+                console.log('   POST https://www.stiqr.top/qrcodes');
                 console.log('   Body:', JSON.stringify({ id: qrCodeId, data: qrData }));
                 
-                const qrcodesResponse = await fetch('https://www.stiqr.top/api/qrcodes', {
+                const qrcodesResponse = await fetch('https://www.stiqr.top/qrcodes', {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
