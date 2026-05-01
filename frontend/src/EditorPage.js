@@ -562,7 +562,7 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
       // Send the data to your backend
       try {
         const response = await fetch('https://www.stiqr.top/qrcodes', {
-          method: 'POST',
+          method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
           },
@@ -2201,7 +2201,7 @@ const EditorPage = ({ onBack, onGoToDashboard, onGoToProfile, embedded = false, 
                 console.log('   Body:', JSON.stringify({ id: qrCodeId, data: qrData }));
                 
                 const qrcodesResponse = await fetch('https://www.stiqr.top/qrcodes', {
-                  method: 'POST',
+                  method: 'PUT',
                   headers: {
                     'Content-Type': 'application/json',
                   },
