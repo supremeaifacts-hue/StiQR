@@ -24,16 +24,16 @@ export default async function onRequest(context) {
   const method = context.request.method;
 
   // ============================================================
-  // 1. Handle POST /qrcodes — save QR code data to MongoDB
+  // 1. Handle POST /api/qrcodes — save QR code data to MongoDB
   //    This is called by the frontend when a user creates a QR code.
   //    No authentication required.
   // ============================================================
-  if (pathname === '/qrcodes' && method === 'POST') {
+  if (pathname === '/api/qrcodes' && method === 'POST') {
     try {
       const body = await context.request.json();
       const { id, data } = body;
       
-      console.log(`📡 POST /qrcodes — saving QR code: id=${id}, data=${data?.substring(0, 100)}`);
+      console.log(`📡 POST /api/qrcodes — saving QR code: id=${id}, data=${data?.substring(0, 100)}`);
       
       const collection = await getMongoCollection();
       
